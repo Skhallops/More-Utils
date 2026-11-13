@@ -22,7 +22,7 @@
 
 ## Core Link balancing
 
-Core Link is intentionally expensive so each placement is a strategic logistics decision rather than a block to spam. Each one requires 40 Bayugo Crystals, surge alloy, phase fabric, thorium, and other late-game materials. Core Link follows the core's item capacity and availability; it does not create a separate inventory. Its remote terminal build uses the core's item module directly.
+Core Link is intentionally expensive so each placement is a strategic logistics decision rather than a block to spam. Each one requires 40 Bayugo Crystals, surge alloy, phase fabric, thorium, and other late-game materials. Core Link follows the core's item capacity and availability; it does not create a separate inventory. Its runtime adapter is installed after JSON content loading, using the core's item module directly. Withdrawals are handled by vanilla unloaders.
 
 ## Requirements
 
