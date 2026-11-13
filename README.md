@@ -1,35 +1,29 @@
 # More Utils
 
-**Useful additions for Mindustry.** More Utils is a growing collection of practical blocks, materials, and logistics upgrades designed to make your factory easier to build and manage.
+**Two new late-game mass drivers for Mindustry.** More Utils currently adds two powerful upgrades to the vanilla mass driver, with distinct designs, firing effects, and roles.
 
-![More Utils icon](icon.png)
+![More Utils preview](docs/preview.png)
 
-## What's included
+## Added mass drivers
 
-- **Manong Vault** — a massive 7×7 storage block with 20,000 item capacity for large-scale stockpiling.
-- **B.B Collider** — a 5×5 late-game factory that uses power, items, and liquids to synthesize Bayugo Crystals.
-- **Bayugo Crystal** — a custom late-game material used to construct the Manong Vault.
-- **Thorium Mass Driver** — an upgraded 3×3 mass driver with extended range and a distinctive firing effect.
-- **Surge Mass Driver** — a powerful 5×5 mass driver built for long-distance item transport.
+- **Thorium Mass Driver (3×3)** — a reinforced, long-range driver with a 180-item capacity and a distinctive pink firing effect. A more affordable upgrade.
+- **Surge Mass Driver (5×5)** — a large, high-capacity driver that carries 520 items over extreme distances, with a faster reload and cyan-and-yellow firing effects.
 
-More utilities and quality-of-life additions are planned. The goal is to expand the tools available to players—not to focus on a single block type.
+Both require power and use the vanilla mass-driver linking and payload system.
 
 ## Requirements
 
 - **Mindustry v8**, build **160 or newer**.
-- Compatible with desktop and mobile. For multiplayer, all players must have the same mod installed.
+- Compatible with desktop and mobile.
 
 ## Installation
 
-Download the mod from the [GitHub repository](https://github.com/Skhallops/More-Utils), then import the ZIP through **Mods → Import Mod** in Mindustry. You can also place the extracted mod folder in your Mindustry `mods` directory.
+Download the mod from the [GitHub repository](https://github.com/Skhallops/More-Utils) and import its ZIP through **Mods → Import Mod** in Mindustry. Alternatively, place the extracted mod folder in your Mindustry `mods` directory.
 
-## Important notes
+## What's next
 
-- The Manong Vault is currently a high-capacity standalone storage block. It does **not** remotely share or synchronize inventory with the core.
-- The B.B Collider's recipe consumes **120 slag, 120 cryofluid, 80 silicon, 50 thorium, and 40 blast compound**, plus power.
-- This is an actively developing mod. Content, balance, and features may change between versions.
+This is the first release focus for **More Utils**. The mod will expand with other useful blocks and quality-of-life additions in future updates.
 
 ## Credits
 
-- Mindustry is created by [Anuken](https://github.com/Anuken/Mindustry) and its contributors.
-- Mass driver sprites are derived from Mindustry's vanilla assets. See the repository's [GPL-3.0 license](LICENSE).
+Mindustry is created by [Anuken](https://github.com/Anuken/Mindustry) and its contributors. The mass driver sprites are derived from Mindustry's vanilla assets and distributed under the [GPL-3.0 license](LICENSE).
