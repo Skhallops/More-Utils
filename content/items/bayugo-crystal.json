@@ -1,9 +1,0 @@
-{
-  "type": "Item",
-  "name": "Bayugo Crystal",
-  "description": "A highly volatile grey colored crystal formed from using unnatural methods to synthesize in the B.B Collider. Used to build the Manong Vault and as a late-game strategic material.",
-  "color": "8a8a8a",
-  "hardness": 1.5,
-  "explosive": false,
-  "meltable": false
-}
