@@ -10,7 +10,7 @@
 - **Surge Mass Driver (5×5)** — a high-capacity driver that carries 520 items over extreme distances, with cyan-and-yellow firing effects.
 - **Bayugo Crystal** — a synthetic late-game material produced by combining refined solids with slag and cryofluid.
 - **B.B Collider (5×5)** — consumes 12 silicon, 8 thorium, 8 blast compound, 48 units of slag, 48 units of cryofluid, and 24 power per tick to produce one Bayugo Crystal every 8 seconds.
-- **Core Link (7×7)** — a remote access point for your team's core inventory. Items inserted into it go directly into the core stockpile, and unloaders can withdraw from that same stockpile. It adds **no extra storage capacity** and requires an active core.
+- **Core Link (7×7)** — a remote access point for your team's core inventory. Conveyors can feed items into it, and adjacent unloaders can withdraw from the same core stockpile. Like vanilla storage blocks, it does not push items directly onto conveyor belts. It adds **no extra storage capacity** and requires an active core.
 
 ## Core Link visuals
 
