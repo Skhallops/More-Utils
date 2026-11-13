@@ -1,26 +1,17 @@
-// Core Link is a remote terminal for the team's existing core inventory.
-// It does not create a second stockpile or add any item capacity.
+// Core Link is a remote interface to the team's existing core inventory.
+// StorageBlock.StorageBuild already forwards normal item handling to linkedCore.
+// This script only maintains the remote link and protects the shared inventory
+// from being serialized once for every Core Link.
 
 function syncCoreLink(build){
     var core = build.team == null ? null : build.team.core();
 
-    // StorageBuild uses linkedCore to forward normal storage behavior to a core.
-    // Keep the item module reference in sync as cores can be added or destroyed.
     build.linkedCore = core;
-    if(core != null){
-        build.items = core.items;
-    }else{
-        // With no active core, do not keep a stale reference to a destroyed
-        // core's inventory. The terminal has no independent stockpile.
-        build.items = new ItemModule();
-    }
+    // StorageBuild.removeStack() operates on this items module, so it must be
+    // the same module used by the core. A missing core gets a private empty
+    // module; itemCapacity is zero so that module cannot accept items.
+    build.items = core == null ? new ItemModule() : core.items;
     return core;
-}
-
-function detachCoreLink(build){
-    // Never let the removed building retain the shared core ItemModule.
-    build.linkedCore = null;
-    build.items = new Packages.mindustry.world.modules.ItemModule();
 }
 
 const coreLink = Vars.content.block("mass-driver-tiers-core-link");
@@ -28,7 +19,17 @@ if(coreLink == null){
     throw new Error("Core Link block definition was not loaded before scripts/main.js.");
 }
 
-coreLink.buildType = prov(() => new JavaAdapter(StorageBlock.StorageBuild, {
+// These are set here as well as in JSON to make the runtime requirements
+// explicit. Shared core items are synchronized by the core, not by this block.
+coreLink.update = true;
+coreLink.sync = false;
+coreLink.hasItems = true;
+coreLink.acceptsItems = true;
+coreLink.unloadable = true;
+coreLink.itemCapacity = 0;
+coreLink.coreMerge = false;
+
+coreLink.buildType = prov(() => extend(StorageBlock.StorageBuild, coreLink, {
     updateTile(){
         syncCoreLink(this);
     },
@@ -38,75 +39,22 @@ coreLink.buildType = prov(() => new JavaAdapter(StorageBlock.StorageBuild, {
         syncCoreLink(this);
     },
 
-    acceptItem(source, item){
-        var core = syncCoreLink(this);
-        return core != null && this.super$acceptItem(source, item);
-    },
-
-    handleItem(source, item){
-        if(syncCoreLink(this) != null){
-            this.super$handleItem(source, item);
-        }
-    },
-
-    acceptStack(item, amount, source){
-        var core = syncCoreLink(this);
-        return core == null ? 0 : core.acceptStack(item, amount, source);
-    },
-
-    handleStack(item, amount, source){
-        var core = syncCoreLink(this);
-        if(core != null){
-            core.handleStack(item, amount, source);
-        }
-    },
-
     write(write){
-        // Avoid serializing a duplicate copy of the team's entire inventory
-        // for every Core Link. The actual core remains the stockpile owner.
-        var previousItems = this.items;
-        syncCoreLink(this);
-        this.items = new Packages.mindustry.world.modules.ItemModule();
+        // Do not write the shared core inventory into every remote terminal.
+        // The CoreBuild is the single authoritative owner of that inventory.
+        var sharedItems = this.items;
+        this.items = new ItemModule();
         try{
             this.super$write(write);
         }finally{
-            this.items = previousItems;
-            syncCoreLink(this);
+            this.items = sharedItems;
         }
     },
 
-    removeStack(item, amount){
-        if(syncCoreLink(this) == null) return 0;
-        // StorageBuild updates campaign core-item counts for linked storage.
-        return this.super$removeStack(item, amount);
-    },
-
-    itemTaken(item){
-        if(syncCoreLink(this) != null){
-            this.super$itemTaken(item);
-        }
-    },
-
-    getMaximumAccepted(item){
-        return syncCoreLink(this) == null ? 0 : this.super$getMaximumAccepted(item);
-    },
-
-    canUnload(){
-        return syncCoreLink(this) != null && this.super$canUnload();
-    },
-
-    // Never spill the shared team inventory when this building is destroyed.
     explosionItemCap(){
+        // Destroying a remote terminal must never spill the team's inventory.
         return 0;
-    },
-
-    onDeconstructed(){
-        detachCoreLink(this);
-        this.super$onDeconstructed();
-    },
-
-    onRemoved(){
-        detachCoreLink(this);
-        this.super$onRemoved();
     }
-}, coreLink));
+}));
+
+print("Core Link runtime initialized for " + coreLink.name);
