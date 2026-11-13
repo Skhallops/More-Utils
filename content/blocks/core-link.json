@@ -1,7 +1,7 @@
 {
   "type": "StorageBlock",
   "name": "Core Link",
-  "description": "A remote item terminal that directly accesses the team's core inventory. It adds no storage capacity and requires an active core. Use unloaders to withdraw items.",
+  "description": "A remote item terminal connected to the team's core inventory. It adds no storage capacity. Conveyors can insert items; use unloaders to withdraw them.",
   "size": 7,
   "health": 18000,
   "armor": 8,
@@ -12,6 +12,7 @@
   "coreMerge": false,
   "update": true,
   "sync": false,
+  "alwaysAllowDeposit": true,
   "solid": true,
   "category": "distribution",
   "requirements": [
