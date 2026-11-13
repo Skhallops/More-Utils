@@ -9,8 +9,10 @@ function syncCoreLink(build){
     build.linkedCore = core;
     if(core != null){
         build.items = core.items;
-    }else if(build.team != null){
-        build.items = build.team.items();
+    }else{
+        // With no active core, do not keep a stale reference to a destroyed
+        // core's inventory. The terminal has no independent stockpile.
+        build.items = new ItemModule();
     }
     return core;
 }
