@@ -1,13 +1,16 @@
 // Core Link is a remote terminal for the team's real core inventory.
 //
-// IMPORTANT: this build intentionally extends plain Building, NOT
-// StorageBlock.StorageBuild. Mindustry's DirectionalUnloader rejects targets
-// that are StorageBuild instances with linkedCore set unless the unloader has
-// allowCoreUnload enabled. A plain Building proxy avoids that vanilla class
-// check while still presenting the core's live ItemModule to the unloader.
+// Mindustry v8 load order is important: scripts/main.js runs BEFORE JSON mod
+// content is parsed. Mods.loadContent() then fires ModContentLoadEvent after
+// every JSON file has been loaded but BEFORE Block.init() creates build types.
+// Register the custom build provider in that event, not at script top level.
 //
-// StorageBlock remains the block definition so it keeps the vanilla storage
-// block's no-direct-conveyor-output behavior and visual/category defaults.
+// The runtime build deliberately extends plain Building, not
+// StorageBlock.StorageBuild. DirectionalUnloader rejects linked StorageBuild
+// instances by default (allowCoreUnload is false), but accepts an ordinary
+// Building that exposes the same live core ItemModule and canUnload behavior.
+// The block definition stays a StorageBlock so Core Link does not output
+// directly onto conveyors; use an Unloader for item withdrawal.
 
 function coreForLink(build){
     if(build == null || build.team == null) return null;
@@ -16,144 +19,173 @@ function coreForLink(build){
 
 function syncCoreLink(build){
     var core = coreForLink(build);
-    build.items = core == null ? new ItemModule() : core.items;
+
+    if(core == null){
+        // Do not retain the old core's inventory after the team's core is gone.
+        if(build._coreLinkBoundCore != null || build.items == null){
+            build.items = new ItemModule();
+        }
+        build._coreLinkBoundCore = null;
+        return null;
+    }
+
+    // Expose the real ItemModule so vanilla DirectionalUnloader can see it.
+    // Rebind if the team switches cores or the core's ItemModule is replaced.
+    if(build.items !== core.items){
+        build.items = core.items;
+    }
+    build._coreLinkBoundCore = core;
     return core;
 }
 
 function detachCoreLink(build){
     // Never leave a removed terminal pointing at the team's inventory.
     build.items = new ItemModule();
+    build._coreLinkBoundCore = null;
 }
 
-const coreLink = Vars.content.block("mass-driver-tiers-core-link");
-if(coreLink == null){
-    throw new Error("[More Utils] Core Link JSON block was not loaded.");
+function installCoreLink(){
+    var coreLink = Vars.content.block("mass-driver-tiers-core-link");
+    if(coreLink == null){
+        throw new Error("Core Link block was not found after mod JSON content loading.");
+    }
+
+    // The core owns and synchronizes the only inventory. This terminal has no
+    // local capacity and must not sync or save a second copy of core items.
+    coreLink.update = true;
+    coreLink.sync = false;
+    coreLink.hasItems = true;
+    coreLink.acceptsItems = true;
+    coreLink.unloadable = true;
+    coreLink.itemCapacity = 0;
+    coreLink.coreMerge = false;
+    coreLink.alwaysAllowDeposit = true;
+
+    coreLink.buildType = prov(function(){
+        return new JavaAdapter(Building, {
+            // Do NOT bind items in created() or onProximityUpdate(). During
+            // save loading, Tile.setBlock() creates the entity before
+            // readAll() reads its saved (empty) module. updateTile() binds only
+            // after the map has finished loading, preventing that empty module
+            // from overwriting the real core inventory.
+
+            updateTile(){
+                syncCoreLink(this);
+            },
+
+            acceptItem(source, item){
+                var core = syncCoreLink(this);
+                return core != null && core.acceptItem(source, item);
+            },
+
+            handleItem(source, item){
+                var core = syncCoreLink(this);
+                if(core != null){
+                    // Keep CoreBuild's own campaign/statistics behavior.
+                    core.noEffect = true;
+                    core.handleItem(source, item);
+                }
+            },
+
+            getMaximumAccepted(item){
+                var core = syncCoreLink(this);
+                return core == null ? 0 : core.getMaximumAccepted(item);
+            },
+
+            acceptStack(item, amount, source){
+                var core = syncCoreLink(this);
+                return core == null ? 0 : core.acceptStack(item, amount, source);
+            },
+
+            handleStack(item, amount, source){
+                var core = syncCoreLink(this);
+                if(core != null){
+                    core.handleStack(item, amount, source);
+                }
+            },
+
+            removeStack(item, amount){
+                var core = syncCoreLink(this);
+                return core == null ? 0 : core.removeStack(item, amount);
+            },
+
+            itemTaken(item){
+                var core = syncCoreLink(this);
+                if(core != null){
+                    // Unloader removes directly from this.items, then calls
+                    // itemTaken(). Forward campaign accounting to CoreBuild.
+                    core.itemTaken(item);
+                }
+            },
+
+            canUnload(){
+                var core = syncCoreLink(this);
+                return core != null && core.canUnload();
+            },
+
+            sense(sensor){
+                var core = syncCoreLink(this);
+                if(sensor == LAccess.itemCapacity){
+                    return core == null ? 0 : core.sense(sensor);
+                }
+                return this.super$sense(sensor);
+            },
+
+            allowDeposit(){
+                return true;
+            },
+
+            canPickup(){
+                // A proxy to the team's inventory must never become a payload.
+                return false;
+            },
+
+            explosionItemCap(){
+                // The team's inventory must never contribute to this terminal's
+                // destruction drops or explosion.
+                return 0;
+            },
+
+            write(write){
+                // Store an empty local module. The core serializes its inventory
+                // once through its own entity save data.
+                var sharedItems = this.items;
+                this.items = new ItemModule();
+                try{
+                    this.super$write(write);
+                }finally{
+                    this.items = sharedItems;
+                }
+            },
+
+            onDeconstructed(builder){
+                detachCoreLink(this);
+                this.super$onDeconstructed(builder);
+            },
+
+            onDestroyed(){
+                detachCoreLink(this);
+                this.super$onDestroyed();
+            },
+
+            onRemoved(){
+                detachCoreLink(this);
+                this.super$onRemoved();
+            }
+        });
+    });
+
+    print("[More Utils] Core Link runtime registered after JSON content loading.");
 }
 
-// The core owns the only inventory. The terminal has no private capacity and
-// must not independently sync or save a second copy of the core's items.
-coreLink.update = true;
-coreLink.sync = false;
-coreLink.hasItems = true;
-coreLink.acceptsItems = true;
-coreLink.unloadable = true;
-coreLink.itemCapacity = 0;
-coreLink.coreMerge = false;
-coreLink.alwaysAllowDeposit = true;
-
-// Do not use StorageBlock.StorageBuild here: vanilla DirectionalUnloader has
-// a hard class check that rejects linked StorageBuild targets by default.
-coreLink.buildType = prov(() => new JavaAdapter(Building, {
-    created(){
-        this.super$created();
-        syncCoreLink(this);
-    },
-
-    onProximityUpdate(){
-        this.super$onProximityUpdate();
-        syncCoreLink(this);
-    },
-
-    updateTile(){
-        // Rebind if a core is added, destroyed, or replaced.
-        syncCoreLink(this);
-    },
-
-    acceptItem(source, item){
-        var core = syncCoreLink(this);
-        return core != null && core.acceptItem(source, item);
-    },
-
-    handleItem(source, item){
-        var core = syncCoreLink(this);
-        if(core != null){
-            // Use CoreBuild's own path so campaign statistics and item counts
-            // are updated exactly as if the conveyor fed the core directly.
-            core.handleItem(source, item);
-        }
-    },
-
-    getMaximumAccepted(item){
-        var core = syncCoreLink(this);
-        return core == null ? 0 : core.getMaximumAccepted(item);
-    },
-
-    acceptStack(item, amount, source){
-        var core = syncCoreLink(this);
-        return core == null ? 0 : core.acceptStack(item, amount, source);
-    },
-
-    handleStack(item, amount, source){
-        var core = syncCoreLink(this);
-        if(core != null){
-            core.handleStack(item, amount, source);
-        }
-    },
-
-    removeStack(item, amount){
-        var core = syncCoreLink(this);
-        return core == null ? 0 : core.removeStack(item, amount);
-    },
-
-    itemTaken(item){
-        var core = syncCoreLink(this);
-        if(core != null){
-            // DirectionalUnloader removes directly from this.items, then calls
-            // itemTaken(). Forward that callback for campaign item accounting.
-            core.itemTaken(item);
-        }
-    },
-
-    canUnload(){
-        var core = syncCoreLink(this);
-        return core != null && core.canUnload();
-    },
-
-    sense(sensor){
-        var core = syncCoreLink(this);
-        if(sensor == LAccess.itemCapacity){
-            return core == null ? 0 : core.sense(sensor);
-        }
-        return this.super$sense(sensor);
-    },
-
-    canPickup(){
-        // A proxy to the team inventory must never become a payload.
-        return false;
-    },
-
-    explosionItemCap(){
-        // The team's inventory is not stored in this building and must never
-        // contribute to this terminal's destruction drops/explosion.
-        return 0;
-    },
-
-    write(write){
-        // Save an empty module for the terminal. The core is the sole owner of
-        // the inventory and will serialize it once in its own save data.
-        var sharedItems = this.items;
-        this.items = new ItemModule();
-        try{
-            this.super$write(write);
-        }finally{
-            this.items = sharedItems;
-        }
-    },
-
-    onDeconstructed(builder){
-        detachCoreLink(this);
-        this.super$onDeconstructed(builder);
-    },
-
-    onDestroyed(){
-        detachCoreLink(this);
-        this.super$onDestroyed();
-    },
-
-    onRemoved(){
-        detachCoreLink(this);
-        this.super$onRemoved();
+// scripts/main.js runs before the mod's JSON content exists. This event is
+// explicitly fired after Mods.loadContent() parses JSON and before content.init().
+Events.on(ModContentLoadEvent, cons(function(event){
+    try{
+        installCoreLink();
+    }catch(error){
+        print("[More Utils] Core Link registration FAILED: " + error);
     }
 }));
 
-print("[More Utils] Core Link plain-Building proxy registered; linked inventory will use core storage.");
+print("[More Utils] Core Link waiting for ModContentLoadEvent.");
