@@ -2,7 +2,7 @@
 
 **More space for your factory. More reach for your logistics.** More Utils adds upgraded mass drivers and a late-game storage network built around the Bayugo Crystal.
 
-![More Utils preview](docs/preview.png)
+![Mass driver preview](docs/preview.png)
 
 ## Added content
 
@@ -11,6 +11,14 @@
 - **Bayugo Crystal** — a synthetic late-game material produced by combining refined solids with slag and cryofluid.
 - **B.B Collider (5×5)** — consumes 12 silicon, 8 thorium, 8 blast compound, 48 units of slag, 48 units of cryofluid, and 24 power per tick to produce one Bayugo Crystal every 8 seconds.
 - **Core Link (7×7)** — a remote access point for your team's core inventory. Items inserted into it go directly into the core stockpile, and unloaders can withdraw from that same stockpile. It adds **no extra storage capacity** and requires an active core.
+
+## Core Link visuals
+
+![Bayugo Crystal](sprites/bayugo-crystal.png)
+
+![B.B Collider](sprites/bb-collider.png)
+
+![Core Link](sprites/core-link.png)
 
 ## Core Link balancing
 
