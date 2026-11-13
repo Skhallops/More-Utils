@@ -1,0 +1,27 @@
+{
+  "type": "StorageBlock",
+  "name": "Core Link",
+  "description": "A remote item terminal that directly accesses the team's core inventory. It adds no storage capacity and requires an active core.",
+  "size": 7,
+  "health": 18000,
+  "armor": 8,
+  "itemCapacity": 1,
+  "hasItems": true,
+  "acceptsItems": true,
+  "unloadable": true,
+  "coreMerge": false,
+  "update": true,
+  "solid": true,
+  "category": "distribution",
+  "requirements": [
+    "copper/1800",
+    "lead/1800",
+    "silicon/1000",
+    "thorium/900",
+    "plastanium/800",
+    "surge-alloy/700",
+    "phase-fabric/450",
+    "bayugo-crystal/40"
+  ],
+  "research": "bb-collider"
+}

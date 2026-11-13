@@ -1,0 +1,12 @@
+{
+  "type": "Item",
+  "name": "Bayugo Crystal",
+  "description": "A dense synthetic crystal formed by the B.B Collider from refined solids and high-energy liquids.",
+  "color": "8de2cd",
+  "cost": 8.0,
+  "hardness": 5,
+  "flammability": 0.05,
+  "explosiveness": 0.15,
+  "radioactivity": 0.2,
+  "charge": 0.7
+}

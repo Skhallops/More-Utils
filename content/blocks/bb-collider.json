@@ -1,0 +1,40 @@
+{
+  "type": "GenericCrafter",
+  "name": "B.B Collider",
+  "description": "An industrial collider that fuses slag and cryofluid with refined solids to synthesize Bayugo Crystals.",
+  "size": 5,
+  "health": 6200,
+  "armor": 4,
+  "itemCapacity": 60,
+  "liquidCapacity": 120,
+  "craftTime": 480,
+  "outputItem": {
+    "item": "bayugo-crystal",
+    "amount": 1
+  },
+  "category": "crafting",
+  "hasPower": true,
+  "consumes": {
+    "items": [
+      "silicon/12",
+      "thorium/8",
+      "blast-compound/8"
+    ],
+    "liquids": [
+      { "liquid": "slag", "amount": 0.10 },
+      { "liquid": "cryofluid", "amount": 0.10 }
+    ],
+    "power": 24
+  },
+  "requirements": [
+    "copper/1500",
+    "lead/1200",
+    "titanium/1200",
+    "silicon/900",
+    "thorium/400",
+    "plastanium/500",
+    "surge-alloy/250",
+    "phase-fabric/150"
+  ],
+  "research": "surge-smelter"
+}
