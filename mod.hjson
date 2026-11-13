@@ -1,6 +1,6 @@
-name: Mass Driver Tiers
-displayName: Mass Driver Tiers
+name: mass-driver-tiers
+displayName: More Utils
 author: Skhall
-description: Adds two vanilla-based late-game tiers of mass drivers, Bayugo Crystals, B.B Collider factory and the Manong Vault storage building.
+description: A growing collection of useful Mindustry blocks, materials, storage, and logistics upgrades.
 version: "1.2.00.0"
 minGameVersion: "160"
