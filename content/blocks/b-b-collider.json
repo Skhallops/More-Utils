@@ -1,0 +1,70 @@
+{
+  "type": "GenericCrafter",
+  "name": "The B.B Collider",
+  "description": "A 5x5 particle collider that synthesizes Bayugo Crystals from slag, cryofluid, silicon, thorium and blast compound. Requires a heavy power supply.",
+  "size": 5,
+  "health": 2500,
+  "itemCapacity": 120,
+  "category": "production",
+  "craftTime": 900,
+  "craftEffect": "craft",
+  "updateEffect": "smoke",
+  "consumes": {
+    "power": 20,
+    "items": [
+      {
+        "item": "slag",
+        "amount": 120
+      },
+      {
+        "item": "silicon",
+        "amount": 80
+      },
+      {
+        "item": "thorium",
+        "amount": 50
+      },
+      {
+        "item": "blast-compound",
+        "amount": 40
+      }
+    ],
+    "liquids": [
+      {
+        "liquid": "cryofluid",
+        "amount": 0.1111111111111111
+      }
+    ]
+  },
+  "outputItem": {
+    "item": "bayugo-crystal",
+    "amount": 1
+  },
+  "requirements": [
+    {
+      "item": "surge-alloy",
+      "amount": 350
+    },
+    {
+      "item": "phase-fabric",
+      "amount": 120
+    },
+    {
+      "item": "thorium",
+      "amount": 300
+    },
+    {
+      "item": "silicon",
+      "amount": 250
+    },
+    {
+      "item": "titanium",
+      "amount": 250
+    },
+    {
+      "item": "plastanium",
+      "amount": 200
+    }
+  ],
+  "research": "surge-mass-driver"
+}
