@@ -17,7 +17,10 @@ New blocks should follow the same pipeline: derive the sprite from the matching
 vanilla asset, remap the palette, then add hand-placed tier detailing. This keeps
 every addition visually consistent with the base game.
 
-Usage:  py -3 tools/generate_sprites.py
+Usage:  py -3 tools/generate_sprites.py --regenerate-mass-drivers
+
+By default this script is a no-op safety check. The checked-in mass-driver sprites
+are deliberately preserved unless regeneration is explicitly requested.
 """
 
 import math
@@ -302,24 +305,39 @@ def make_preview(jobs, scale=2, pad=26, gap=26):
 # ----------------------------------------------------------------------------
 
 def main():
-    os.makedirs(SPRITES, exist_ok=True)
-    os.makedirs(DOCS, exist_ok=True)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Regenerate the two mass-driver sprite pairs.")
+    parser.add_argument(
+        "--regenerate-mass-drivers",
+        action="store_true",
+        help="overwrite the Thorium and Surge mass-driver PNGs (explicit opt-in)",
+    )
+    args = parser.parse_args()
+
+    required = [
+        os.path.join(SPRITES, "thorium-mass-driver.png"),
+        os.path.join(SPRITES, "thorium-mass-driver-base.png"),
+        os.path.join(SPRITES, "surge-mass-driver.png"),
+        os.path.join(SPRITES, "surge-mass-driver-base.png"),
+    ]
+    missing = [path for path in required if not os.path.isfile(path)]
+    if missing:
+        raise FileNotFoundError("Missing checked-in mass-driver assets: " + ", ".join(missing))
+
+    if not args.regenerate_mass_drivers:
+        print("Mass-driver sprites verified; no files changed.")
+        print("Pass --regenerate-mass-drivers only when you intentionally want to replace them.")
+        return
 
     jobs = [
         ("thorium-mass-driver", THORIUM_SIZE, THORIUM, thorium_turret, thorium_base),
         ("surge-mass-driver", SURGE_SIZE, SURGE, surge_turret, surge_base),
     ]
-
-    for name, size, pal, turret, base in jobs:
+    for name, size, _pal, turret, base in jobs:
         base(size).save(os.path.join(SPRITES, name + "-base.png"))
         turret(size).save(os.path.join(SPRITES, name + ".png"))
         print(f"wrote {name} ({size}x{size})")
-
-    make_icon().save(os.path.join(ROOT, "icon.png"))
-    print("wrote icon.png")
-
-    make_preview(jobs).save(os.path.join(DOCS, "preview.png"))
-    print("wrote docs/preview.png")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,9 @@
 # Mass Driver Tiers
 
 A small Mindustry mod that adds two late-game upgrades to the vanilla mass driver:
-a **Thorium Mass Driver** and a **Surge Mass Driver**.
+a **Thorium Mass Driver** and a **Surge Mass Driver**, plus Bayugo Crystals, the
+B.B Collider factory, and the Core Vault storage building. The mass-driver art is
+preserved in this release; the other three sprites have been refreshed.
 
 ![Preview](docs/preview.png)
 
@@ -31,6 +33,82 @@ its own signature:
 
 Both tiers also use a stronger screen shake than vanilla (4 and 10 vs. 3) so the
 larger drivers feel heavier when they fire.
+
+## Bayugo Crystal
+
+A volatile grey crystal synthesized in the B.B Collider from slag, cryofluid,
+silicon, thorium and blast compound. Used in late-game core-linked storage.
+
+| Property | Value |
+| --- | --- |
+| Color | Grey (`8a8a8a`) |
+| Crafted at | The B.B Collider (5×5) |
+| Ingredients | 120 slag, 80 silicon, 50 thorium, 40 blast-compound, 100 cryofluid |
+| Craft time | 900 ticks (15 seconds) |
+
+## The B.B Collider
+
+A massive 5×5 particle collider that synthesizes Bayugo Crystals. Late-game only,
+high power draw, expensive to build.
+
+| Property | Value |
+| --- | --- |
+| Size | 5×5 |
+| Health | 2500 |
+| Category | Production |
+| Craft time | 900 ticks (15 seconds) |
+| Power | 20 |
+| Research | Surge Mass Driver |
+
+**Build cost:**
+
+- 350 surge alloy
+- 120 phase fabric
+- 300 thorium
+- 250 silicon
+- 250 titanium
+- 200 plastanium
+
+**Craft recipe (per crystal):**
+
+- 120 slag
+- 80 silicon
+- 50 thorium
+- 40 blast-compound
+- 100 cryofluid
+
+## Core Vault
+
+A colossal 7×7 storage vault engineered to interface directly with your core's
+inventory. Place it directly adjacent to a core to merge its inventory with the core and
+increase the shared per-item capacity by 20,000. Away from a core, it functions as
+independent high-capacity storage. Extremely expensive, late-game strategic
+building.
+
+| Property | Value |
+| --- | --- |
+| Size | 7×7 |
+| Health | 9000 |
+| Item capacity | 20000 |
+| Category | Storage |
+| Research | The B.B Collider |
+
+**Build cost:**
+
+- 250 Bayugo Crystals
+- 600 surge alloy
+- 250 phase fabric
+- 500 thorium
+- 400 plastanium
+- 500 titanium
+
+### Core inventory note
+
+The Core Vault uses Mindustry's built-in `StorageBlock` core-merging behavior
+(`coreMerge: true`). It shares the core's item inventory only when placed directly
+adjacent to that core; a distant vault remains a separate storage building.
+Its 20,000 item capacity is added to the connected core's shared capacity.
+
 
 ### Costs
 
@@ -75,52 +153,55 @@ Releases use the four-part scheme `1.x.xx.x`:
 - `x` — hotfix/patch
 
 The in-game version in `mod.hjson` and the GitHub release tag must always match:
-mod `1.1.00.0` ↔ GitHub tag/release `v1.1.00.0`. For example: a new feature bumps
+mod `1.2.00.1` ↔ GitHub tag/release `v1.2.00.1`. For example: a new feature bumps
 the second number (`1.2.00.0`), a balance pass bumps the third (`1.2.01.0`), and a
 bugfix bumps the last (`1.2.01.1`).
 
 ## How the sprites are made
 
-The turret sprites are derived from Mindustry's own `mass-driver.png` (kept in
-`tools/vanilla/`), so the silhouette, pixel density and shading match the vanilla
-driver exactly. The generator snaps every pixel to the vanilla 5-color palette and
-remaps it onto a tier palette, then adds the tier detailing:
+The Thorium and Surge mass-driver sprites are based on the vanilla Mass Driver
+assets in `tools/vanilla/` (GPLv3). Their existing checked-in PNGs are preserved
+in this release, and the default generator command will not overwrite them.
 
-- **Thorium** — mauve steel with rose plating and thorium-pink accents; a muzzle
-  accelerator collar, dashed charge rails, a pink emitter core and a glowing rear
-  prong tip.
-- **Surge** — blue steel with cyan plating and surge-yellow accents; three
-  accelerator collars, a cyan energy spine, a cyan/yellow emitter core and cyan
-  edge ticks on the base. The 5×5 art is upscaled from the vanilla bitmap and
-  re-quantized so it stays crisp pixel art.
+The B.B Collider, Core Vault and Bayugo Crystal have refreshed, original pixel-art
+sprites. Their concept sheet lives in `tools/source-art/`; the generator crops the
+three isolated designs, scales them to Mindustry's native resolution, limits the
+palette without dithering, and saves transparent 32-bit RGBA PNGs.
 
-Future blocks should follow the same pipeline: derive from the matching vanilla
-asset, remap the palette, then add hand-placed tier detailing. This keeps every
-addition visually consistent with the base game.
-
-All sprites and the mod icon are generated with [Pillow](https://python-pillow.org/),
-so they can be re-rendered after tweaking the palettes or geometry:
+Install the small image dependency, regenerate the refreshed sprites, then run
+static validation:
 
 ```sh
-py -3 tools/generate_sprites.py
+py -3 -m pip install -r requirements.txt
+py -3 tools/generate_grey_sprites.py
+py -3 tools/validate_mod.py
 ```
 
 This writes:
 
-- `sprites/thorium-mass-driver.png` / `-base.png` (96×96, 3×3)
-- `sprites/surge-mass-driver.png` / `-base.png` (160×160, 5×5)
-- `icon.png` (128×128)
-- `docs/preview.png` (README preview sheet)
+- `sprites/b-b-collider.png` (160×160, 5×5 block)
+- `sprites/core-vault.png` (224×224, 7×7 block)
+- `sprites/bayugo-crystal.png` (32×32, item)
+- `docs/preview.png` (sprite comparison sheet; mass-driver art is read only)
 
-Mindustry auto-prefixes mod sprite names with the mod's internal name
-(`mass-driver-tiers`), so the file names map directly to the block names.
-Each mass driver needs two regions: the rotating turret (`<name>.png`) and the
-static base (`<name>-base.png`).
+The mass-driver generator is deliberately opt-in. Use this command only when you
+intentionally want to regenerate the two mass-driver sprite pairs:
 
-> **Asset credit / license:** the vanilla mass driver sprite is part of
-> [Mindustry](https://github.com/Anuken/Mindustry) by Anuken and contributors, which
-> is licensed under the **GPLv3**. The tier sprites here are derivative works of
-> that asset and are distributed under the same license.
+```sh
+py -3 tools/generate_sprites.py --regenerate-mass-drivers
+```
+
+Mindustry uses the content filename as the sprite name. Standard blocks use one
+full-size sprite (`<name>.png`); Mass Drivers additionally load a static base
+region (`<name>-base.png`) underneath their rotating turret region. The old
+`-base` images for the B.B Collider and Core Vault were not used by their standard
+block classes, so those redundant images have been removed.
+
+> **Asset credit / license:** the vanilla mass-driver sprite is part of
+> [Mindustry](https://github.com/Anuken/Mindustry) by Anuken and contributors. The
+> Thorium and Surge tier sprites are derivative works of that asset. This mod is
+> distributed under the **GPLv3**; the refreshed Collider, Vault and Crystal artwork
+> is original artwork.
 
 ## Packaging a release
 
@@ -135,6 +216,13 @@ sprites/
 
 `tools/` (sprite generator) and `docs/` (preview) can be left out of the release
 archive.
+
+## Validation
+
+Run `py -3 tools/validate_mod.py` to check JSON syntax, item fields, content
+references, per-craft item capacity, recipe liquid totals, sprite dimensions and
+32-bit RGBA formats. These are static checks; launch the mod in Mindustry before
+publishing.
 
 ## Notes
 

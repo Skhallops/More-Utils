@@ -1,0 +1,37 @@
+{
+  "type": "StorageBlock",
+  "name": "Core Vault",
+  "description": "A 7x7 high-capacity storage vault. Place it directly adjacent to a core to merge its inventory with the core and add 20,000 storage capacity; placed elsewhere, it stores items independently.",
+  "size": 7,
+  "health": 9000,
+  "itemCapacity": 20000,
+  "category": "storage",
+  "requirements": [
+    {
+      "item": "bayugo-crystal",
+      "amount": 250
+    },
+    {
+      "item": "surge-alloy",
+      "amount": 600
+    },
+    {
+      "item": "phase-fabric",
+      "amount": 250
+    },
+    {
+      "item": "thorium",
+      "amount": 500
+    },
+    {
+      "item": "plastanium",
+      "amount": 400
+    },
+    {
+      "item": "titanium",
+      "amount": 500
+    }
+  ],
+  "research": "b-b-collider",
+  "coreMerge": true
+}
