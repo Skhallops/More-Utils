@@ -1,0 +1,9 @@
+{
+  "type": "Item",
+  "name": "Bayugo Crystal",
+  "description": "A volatile grey crystal synthesized in the B.B Collider from slag, cryofluid, silicon, thorium and blast compound. Used in late-game core-linked storage.",
+  "color": "8a8a8a",
+  "hardness": 1.5,
+  "explosive": false,
+  "meltable": false
+}

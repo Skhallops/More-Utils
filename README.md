@@ -1,7 +1,8 @@
 # Mass Driver Tiers
 
 A small Mindustry mod that adds two late-game upgrades to the vanilla mass driver:
-a **Thorium Mass Driver** and a **Surge Mass Driver**.
+a **Thorium Mass Driver** and a **Surge Mass Driver**, plus Bayugo Crystals, the
+B.B Collider factory, and the Core Vault storage building.
 
 ![Preview](docs/preview.png)
 
@@ -31,6 +32,81 @@ its own signature:
 
 Both tiers also use a stronger screen shake than vanilla (4 and 10 vs. 3) so the
 larger drivers feel heavier when they fire.
+
+## Bayugo Crystal
+
+A volatile grey crystal synthesized in the B.B Collider from slag, cryofluid,
+silicon, thorium and blast compound. Used in late-game core-linked storage.
+
+| Property | Value |
+| --- | --- |
+| Color | Grey (`8a8a8a`) |
+| Crafted at | The B.B Collider (5×5) |
+| Ingredients | 120 slag, 80 silicon, 50 thorium, 40 blast-compound, 100 cryofluid |
+| Craft time | 900 ticks |
+
+## The B.B Collider
+
+A massive 5×5 particle collider that synthesizes Bayugo Crystals. Late-game only,
+high power draw, expensive to build.
+
+| Property | Value |
+| --- | --- |
+| Size | 5×5 |
+| Health | 2500 |
+| Category | Production |
+| Craft time | 900 ticks |
+| Power | 20 |
+| Research | Surge Mass Driver |
+
+**Build cost:**
+
+- 350 surge alloy
+- 120 phase fabric
+- 300 thorium
+- 250 silicon
+- 250 titanium
+- 200 plastanium
+
+**Craft recipe (per crystal):**
+
+- 120 slag
+- 80 silicon
+- 50 thorium
+- 40 blast-compound
+- 100 cryofluid
+
+## Core Vault
+
+A colossal 7×7 storage vault engineered to interface directly with your core's
+inventory. Place it anywhere and route belts straight into it - items flow to and
+from core storage as if it were the core itself. Extremely expensive, late-game
+strategic building.
+
+| Property | Value |
+| --- | --- |
+| Size | 7×7 |
+| Health | 9000 |
+| Item capacity | 20000 |
+| Category | Storage |
+| Research | The B.B Collider |
+
+**Build cost:**
+
+- 250 Bayugo Crystals
+- 600 surge alloy
+- 250 phase fabric
+- 500 thorium
+- 400 plastanium
+- 500 titanium
+
+### Core inventory note
+
+True shared-core-inventory behaviour requires custom game logic beyond pure JSON
+content. This release ships the Core Vault as a high-capacity (20,000 item)
+storage block you can place anywhere to decentralize your core's buffer. A Java
+block class would be needed for literal core inventory sharing.
+
 
 ### Costs
 
@@ -75,7 +151,7 @@ Releases use the four-part scheme `1.x.xx.x`:
 - `x` — hotfix/patch
 
 The in-game version in `mod.hjson` and the GitHub release tag must always match:
-mod `1.1.00.0` ↔ GitHub tag/release `v1.1.00.0`. For example: a new feature bumps
+mod `1.2.00.0` ↔ GitHub tag/release `v1.2.00.0`. For example: a new feature bumps
 the second number (`1.2.00.0`), a balance pass bumps the third (`1.2.01.0`), and a
 bugfix bumps the last (`1.2.01.1`).
 
@@ -103,12 +179,16 @@ so they can be re-rendered after tweaking the palettes or geometry:
 
 ```sh
 py -3 tools/generate_sprites.py
+py -3 tools/generate_grey_sprites.py
 ```
 
 This writes:
 
 - `sprites/thorium-mass-driver.png` / `-base.png` (96×96, 3×3)
 - `sprites/surge-mass-driver.png` / `-base.png` (160×160, 5×5)
+- `sprites/bayugo-crystal.png` (32×32, item)
+- `sprites/b-b-collider.png` / `-base.png` (160×160, 5×5)
+- `sprites/core-vault.png` / `-base.png` (224×224, 7×7)
 - `icon.png` (128×128)
 - `docs/preview.png` (README preview sheet)
 

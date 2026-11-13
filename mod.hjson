@@ -1,6 +1,6 @@
 name: Mass Driver Tiers
 displayName: Mass Driver Tiers
 author: Skhall
-description: Adds two late-game tiers of mass drivers: a thorium-powered driver with extended range, and a massive surge-alloy driver for endgame logistics.
-version: "1.1.00.0"
+description: Adds two late-game tiers of mass drivers, plus Bayugo Crystals, the B.B Collider factory and the Core Vault storage building.
+version: "1.2.00.0"
 minGameVersion: "160"
