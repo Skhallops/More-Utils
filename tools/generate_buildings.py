@@ -1,918 +1,624 @@
 """
-Candidate sprite generator for the More Utils late-game buildings.
+Sprite generator for the More-Utils mod.
 
-Both buildings are drawn from scratch with the same pixel vocabulary as the
-vanilla-derived mass drivers in generate_sprites.py:
+Both buildings are derived from real vanilla Mindustry sprites instead of being
+drawn from scratch, so their silhouette, pixel density and shading language
+match the base game exactly:
 
-  * hard-edged 1px outlines, 2-3px bevels, top-left light / bottom-right shade
-  * chunky armour plates, rivets, vents, hazard stripes and pipe flanges
-  * a deliberately narrow 14-colour grey-steel palette
+  * B.B Collider (5x5)  - vanilla Core: Nucleus shell re-coloured with the
+                          vanilla Distributor palette, with a heavy industrial
+                          accelerator housing built into the centre. No crystal
+                          detail: the collider only *makes* crystals.
+  * Core Link  (7x7)    - a Distributor-styled reinforced platform carrying a
+                          Nexus-style core module, with Bayugo crystal windows in
+                          the apron and a crystal vault at the centre.
 
-The 20% sci-fi layer is an Iron-Man-style arc reactor: segmented gold rings,
-teal containment rings, a white-hot core and Bayugo crystal inlays.
+Every grey is sampled from a vanilla sprite, so nothing can drift off-model:
+distributor.png gives #4a4b53 / #6e7080 / #989aa4, core-nucleus.png adds the
+lighter #b0bac0 bevel. Crystal and heat accents reuse the palette of the block
+effects and of the Bayugo Crystal item icon (teal body, gold facet).
 
-Outputs candidate sprites plus labelled contact sheets into docs/designs/.
-The chosen designs are then copied into sprites/ so the shipped art is always
-reproducible from this script.
-
-Usage:  py -3 tools/generate_buildings.py
+Usage:  py -3 tools/generate_buildings.py [--ascii]
 """
 
 import math
 import os
+import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+VANILLA = os.path.join(ROOT, "tools", "vanilla")
 DOCS = os.path.join(ROOT, "docs", "designs")
 SPRITES = os.path.join(ROOT, "sprites")
 
 # ---------------------------------------------------------------------------
-# shared 14-colour palette
+# palette - every entry copied from a vanilla sprite or from the mod effects
 # ---------------------------------------------------------------------------
 
-K = (39, 48, 56)      # outline
-L = (177, 190, 191)   # light steel
-D = (64, 76, 84)      # dark panel
-d = (91, 105, 112)    # mid-dark
-m = (133, 147, 151)   # mid steel
-W = (216, 225, 219)   # highlight
-T = (37, 105, 111)    # deep teal
-G = (211, 180, 94)    # gold
-w = (237, 242, 230)   # white
-C = (133, 224, 198)   # Bayugo mint
-c = (63, 170, 164)    # Bayugo teal
-y = (247, 224, 151)   # pale gold
-g = (151, 119, 58)    # dark gold
-H = (207, 250, 232)   # pale mint
+# distributor.png (exact):  outline, body, highlight
+# core-nucleus.png (exact): adds the lighter bevel tone
+EDGE = (74, 75, 83)      # 4a4b53  distributor outline
+DARK = (110, 112, 128)   # 6e7080  distributor body / nucleus shadow
+MID = (152, 154, 164)    # 989aa4  distributor highlight / nucleus body
+LIGHT = (176, 186, 192)  # b0bac0  nucleus highlight
 
-PALETTE = (K, L, D, d, m, W, T, G, w, C, c, y, g, H)
+# Bayugo Crystal - matches the item icon (teal body, gold facet)
+C_DEEP = (37, 105, 111)    # 25696f
+C_DARK = (63, 170, 164)    # 3faaa4
+C_MID = (133, 224, 198)    # 85e0c6
+C_HI = (207, 250, 232)     # cffae8
 
+# collider heat - matches the craftEffect golds
+A_DEEP = (151, 119, 58)    # 97773a
+A_MID = (211, 180, 94)     # d3b45e
+A_HOT = (247, 224, 151)    # f7e097
+A_WHITE = (253, 246, 223)
+
+PALETTE = (EDGE, DARK, MID, LIGHT, C_DEEP, C_DARK, C_MID, C_HI,
+           A_DEEP, A_MID, A_HOT, A_WHITE)
+
+# core-nucleus.png uses these three flat tones
+NUCLEUS = [(110, 112, 128), (152, 154, 164), (176, 186, 192)]
+
+BB = 160   # 5x5 blocks
+CL = 224   # 7x7 blocks
 
 # ---------------------------------------------------------------------------
-# primitives
+# vanilla helpers
 # ---------------------------------------------------------------------------
 
-def octagon(size, inset, cut):
-    lo, hi = inset, size - inset
+
+def load_vanilla(name):
+    return Image.open(os.path.join(VANILLA, name + ".png")).convert("RGBA")
+
+
+def restyle(img, src, dst):
+    """Snap a vanilla sprite onto another palette.
+
+    Vanilla block art uses a handful of flat tones, so a nearest-colour remap
+    preserves every pixel of the original shading and only changes the hues.
+    """
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    sp = img.load()
+    dp = out.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = sp[x, y]
+            if a < 20:
+                continue
+            idx = min(
+                range(len(src)),
+                key=lambda i: (src[i][0] - r) ** 2 + (src[i][1] - g) ** 2 + (src[i][2] - b) ** 2,
+            )
+            dp[x, y] = dst[idx] + (255,)
+    return out
+
+
+def octagon(cx, cy, r, fill, cut=None):
+    cut = r * 0.42 if cut is None else cut
     return [
-        (lo + cut, lo), (hi - cut, lo), (hi, lo + cut), (hi, hi - cut),
-        (hi - cut, hi), (lo + cut, hi), (lo, hi - cut), (lo, lo + cut),
+        (cx - r + cut, cy - r), (cx + r - cut, cy - r),
+        (cx + r, cy - r + cut), (cx + r, cy + r - cut),
+        (cx + r - cut, cy + r), (cx - r + cut, cy + r),
+        (cx - r, cy + r - cut), (cx - r, cy - r + cut),
     ]
 
 
-def chassis(size, inset=3, cut=16, body=m, floor=D):
-    """Rounded-corner armour shell with a recessed floor plate."""
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-
-    draw.polygon(octagon(size, inset, cut), fill=K)
-    draw.polygon(octagon(size, inset + 2, max(3, cut - 1)), fill=body)
-    draw.polygon(octagon(size, inset + 8, max(3, cut - 6)), fill=floor)
-
-    # outer rim bevel: light top/left, shade bottom/right
-    lo, hi = inset + 2, size - inset - 2
-    draw.line([(lo + cut - 1, lo), (hi - cut + 1, lo)], fill=L, width=2)
-    draw.line([(lo + cut - 1, lo), (lo, lo + cut - 1)], fill=L, width=2)
-    draw.line([(lo, lo + cut - 1), (lo, hi - cut + 1)], fill=L, width=2)
-    draw.line([(lo + cut - 1, hi), (hi - cut + 1, hi)], fill=D, width=2)
-    draw.line([(hi - cut + 1, hi), (hi, hi - cut + 1)], fill=D, width=2)
-    draw.line([(hi, lo + cut - 1), (hi, hi - cut + 1)], fill=d, width=2)
-
-    # recessed floor lip: dark at the top/left, lit at the bottom/right
-    lo2, hi2 = inset + 8, size - inset - 8
-    draw.line([(lo2 + cut - 6, lo2), (hi2 - cut + 6, lo2)], fill=d, width=2)
-    draw.line([(lo2 + cut - 6, lo2), (lo2, lo2 + cut - 6)], fill=d, width=2)
-    draw.line([(lo2, lo2 + cut - 6), (lo2, hi2 - cut + 6)], fill=d, width=2)
-    draw.line([(lo2 + cut - 6, hi2), (hi2 - cut + 6, hi2)], fill=m, width=2)
-    draw.line([(hi2 - cut + 6, hi2), (hi2, hi2 - cut + 6)], fill=m, width=2)
-    draw.line([(hi2, lo2 + cut - 6), (hi2, hi2 - cut + 6)], fill=m, width=2)
-
-    # top/bottom rivet rows
-    for x in range(inset + cut + 8, size - inset - cut - 6, 18):
-        bolt(draw, x, inset + 4)
-    for x in range(inset + cut + 8, size - inset - cut - 6, 18):
-        bolt(draw, x, size - inset - 5)
-    return img
+def octo(img, cx, cy, r, fill, cut=None):
+    ImageDraw.Draw(img).polygon(octagon(cx, cy, r, fill, cut), fill=fill)
 
 
-def bolt(draw, x, y):
-    draw.rectangle([x - 1, y - 1, x + 1, y + 1], fill=K)
-    draw.rectangle([x, y, x + 1, y + 1], fill=d)
-    draw.point([x, y], fill=W)
-
-
-def rivet_row(draw, x0, x1, y, step=10):
-    for x in range(x0, x1 + 1, step):
-        bolt(draw, x, y)
-
-
-def panel(img, box, fill=m, hi=W, lo=d, edge=K):
+def bevel(img, box, radius, hi, lo):
+    """Top-left lit / bottom-right shadowed edge, the vanilla lighting rule."""
     x0, y0, x1, y1 = box
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([x0 - 1, y0 - 1, x1 + 1, y1 + 1], fill=edge)
-    draw.rectangle([x0, y0, x1, y1], fill=fill)
-    draw.line([x0, y0, x1, y0], fill=hi)
-    draw.line([x0, y0, x0, y1], fill=hi)
-    draw.line([x0, y1, x1, y1], fill=lo)
-    draw.line([x1, y0, x1, y1], fill=lo)
+    d = ImageDraw.Draw(img)
+    d.line([(x0 + radius, y0), (x1 - radius, y0)], fill=hi, width=2)
+    d.line([(x0, y0 + radius), (x0, y1 - radius)], fill=hi, width=2)
+    d.line([(x0 + radius, y1), (x1 - radius, y1)], fill=lo, width=2)
+    d.line([(x1, y0 + radius), (x1, y1 - radius)], fill=lo, width=2)
+    d.arc([x0, y0, x0 + 2 * radius, y0 + 2 * radius], 180, 270, fill=hi, width=2)
+    d.arc([x1 - 2 * radius, y1 - 2 * radius, x1, y1], 0, 90, fill=lo, width=2)
 
 
-def inset(img, box, fill=D, hi=d, lo=m, edge=K):
+def bolt(img, cx, cy, r=3, face=MID, dark=EDGE):
+    d = ImageDraw.Draw(img)
+    d.rectangle([cx - r, cy - r, cx + r, cy + r], fill=dark)
+    d.rectangle([cx - r + 1, cy - r + 1, cx + r - 1, cy + r - 1], fill=face)
+    d.point([cx - r + 1, cy - r + 1], fill=LIGHT)
+
+
+def panel(img, box, radius=0, face=DARK, hi=MID, lo=EDGE):
     x0, y0, x1, y1 = box
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([x0 - 1, y0 - 1, x1 + 1, y1 + 1], fill=edge)
-    draw.rectangle([x0, y0, x1, y1], fill=fill)
-    draw.line([x0, y0, x1, y0], fill=hi)
-    draw.line([x0, y0, x0, y1], fill=hi)
-    draw.line([x0, y1, x1, y1], fill=lo)
-    draw.line([x1, y0, x1, y1], fill=lo)
-
-
-def vent(img, box, slats=4):
-    x0, y0, x1, y1 = box
-    inset(img, box, fill=d, hi=K, lo=m)
-    draw = ImageDraw.Draw(img)
-    span = y1 - y0 - 2
-    step = max(3, span // max(1, slats))
-    for i in range(slats):
-        yy = y0 + 2 + i * step
-        if yy + 1 > y1 - 1:
-            break
-        draw.line([x0 + 2, yy, x1 - 2, yy], fill=K)
-        draw.line([x0 + 2, yy + 1, x1 - 2, yy + 1], fill=D)
-
-
-def hazard(img, box, stripe=7, col=y, dark=g):
-    """Diagonal caution stripes, clipped to the box."""
-    x0, y0, x1, y1 = box
-    width, height = x1 - x0 + 1, y1 - y0 + 1
-    tile = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    td = ImageDraw.Draw(tile)
-    td.rectangle([0, 0, width - 1, height - 1], fill=dark)
-    for i in range(-height, width + height, stripe * 2):
-        td.polygon(
-            [(i, height), (i + stripe, height), (i + stripe + height, 0), (i + height, 0)],
-            fill=col,
-        )
-    img.alpha_composite(tile, (x0, y0))
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([x0 - 1, y0 - 1, x1 + 1, y1 + 1], outline=K)
-    draw.line([x0, y0, x1, y0], fill=W)
-    draw.line([x0, y1, x1, y1], fill=K)
-
-
-def pipe(img, x0, y0, x1, y1, conduit=False, flanges=True):
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([x0 - 1, y0 - 1, x1 + 1, y1 + 1], fill=K)
-    draw.rectangle([x0, y0, x1, y1], fill=m)
-    draw.line([x0, y0, x1, y0], fill=L)
-    draw.line([x0, y0, x0, y1], fill=L)
-    draw.line([x0, y1, x1, y1], fill=D)
-    draw.line([x1, y0, x1, y1], fill=d)
-    if conduit:
-        mid = (y0 + y1) // 2
-        draw.line([x0 + 2, mid, x1 - 2, mid], fill=T)
-        for x in range(x0 + 3, x1 - 2, 7):
-            draw.line([x, mid - 1, min(x + 2, x1 - 2), mid - 1], fill=C)
-    if flanges:
-        for x in (x0, x1 - 3):
-            draw.rectangle([x, y0 - 2, x + 3, y1 + 2], fill=K)
-            draw.rectangle([x, y0 - 1, x + 2, y1 + 1], fill=L)
-            draw.line([x, y1, x + 2, y1], fill=d)
-            bolt(draw, x + 1, (y0 + y1) // 2)
-
-
-def vpipe(img, x0, y0, x1, y1, conduit=False, flanges=True):
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([x0 - 1, y0 - 1, x1 + 1, y1 + 1], fill=K)
-    draw.rectangle([x0, y0, x1, y1], fill=m)
-    draw.line([x0, y0, x0, y1], fill=L)
-    draw.line([x0, y0, x1, y0], fill=L)
-    draw.line([x1, y0, x1, y1], fill=d)
-    draw.line([x0, y1, x1, y1], fill=D)
-    if conduit:
-        mid = (x0 + x1) // 2
-        draw.line([mid, y0 + 2, mid, y1 - 2], fill=T)
-        for yy in range(y0 + 3, y1 - 2, 7):
-            draw.line([mid - 1, yy, mid - 1, min(yy + 2, y1 - 2)], fill=C)
-    if flanges:
-        for yy in (y0, y1 - 3):
-            draw.rectangle([x0 - 2, yy, x1 + 2, yy + 3], fill=K)
-            draw.rectangle([x0 - 1, yy, x1 + 1, yy + 2], fill=L)
-            draw.line([x0 - 1, yy + 2, x1 + 1, yy + 2], fill=d)
-            bolt(draw, (x0 + x1) // 2, yy + 1)
-
-
-def disc(draw, cx, cy, r, fill):
-    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=fill)
-
-
-def ring(draw, cx, cy, r_out, r_in, fill, edge=K):
-    disc(draw, cx, cy, r_out, edge)
-    disc(draw, cx, cy, r_out - 1, fill)
-    disc(draw, cx, cy, r_in, edge)
-    disc(draw, cx, cy, r_in - 1, fill)
-
-
-def arc_reactor(img, cx, cy, r, spokes=12, triangle=True):
-    """Segmented gold containment ring, teal field rings, white-hot core."""
-    draw = ImageDraw.Draw(img)
-    disc(draw, cx, cy, r + 3, K)
-    disc(draw, cx, cy, r, G)
-    disc(draw, cx, cy, r - 2, g)
-
-    # radial segment cuts and bolts between them
-    for i in range(spokes):
-        a = 2 * math.pi * i / spokes - math.pi / 2
-        x0 = cx + round(math.cos(a) * (r - 1))
-        y0 = cy + round(math.sin(a) * (r - 1))
-        x1 = cx + round(math.cos(a) * (r - 6))
-        y1 = cy + round(math.sin(a) * (r - 6))
-        draw.line([x0, y0, x1, y1], fill=K)
-        b = a + math.pi / spokes
-        bx = cx + round(math.cos(b) * (r - 4))
-        by = cy + round(math.sin(b) * (r - 4))
-        draw.rectangle([bx - 1, by - 1, bx + 1, by + 1], fill=K)
-        draw.point([bx, by], fill=W)
-
-    disc(draw, cx, cy, r - 8, K)
-    disc(draw, cx, cy, r - 9, T)
-    disc(draw, cx, cy, max(1, r - 13), c)
-    disc(draw, cx, cy, max(1, r - 17), C)
-    disc(draw, cx, cy, max(1, r - 21), H)
-
-    # eight bright spokes across the field ring
-    for i in range(8):
-        a = 2 * math.pi * i / 8 - math.pi / 2
-        x0 = cx + round(math.cos(a) * (r - 20))
-        y0 = cy + round(math.sin(a) * (r - 20))
-        x1 = cx + round(math.cos(a) * (r - 10))
-        y1 = cy + round(math.sin(a) * (r - 10))
-        draw.line([x0, y0, x1, y1], fill=T if i % 2 else c)
-
-    if triangle:
-        rr = max(4, r * 0.53)
-        tri = [
-            (cx, cy - rr),
-            (cx + round(rr * 0.866), cy + round(rr * 0.5)),
-            (cx - round(rr * 0.866), cy + round(rr * 0.5)),
-        ]
-        draw.polygon([(x, y - 2) for x, y in tri], fill=K)
-        draw.polygon([(x, y + 1) for x, y in tri], fill=K)
-        draw.polygon(tri, fill=G)
-        inner = [(cx + (x - cx) * 0.8, cy + (y - cy) * 0.8) for x, y in tri]
-        draw.polygon(inner, fill=w)
-        core = [(cx + (x - cx) * 0.5, cy + (y - cy) * 0.5) for x, y in tri]
-        draw.polygon(core, fill=H)
+    d = ImageDraw.Draw(img)
+    if radius:
+        d.rounded_rectangle(box, radius=radius, fill=EDGE)
+        d.rounded_rectangle([x0 + 2, y0 + 2, x1 - 2, y1 - 2], radius=max(1, radius - 2), fill=face)
+        bevel(img, (x0 + 2, y0 + 2, x1 - 2, y1 - 2), max(1, radius - 2), hi, lo)
     else:
-        rr = max(3, r - 27)
-        disc(draw, cx, cy, rr + 2, K)
-        disc(draw, cx, cy, rr, w)
-        disc(draw, cx, cy, max(1, rr - 3), H)
-
-    # top-left glint on the gold ring
-    ga = math.radians(225)
-    gx = cx + round(math.cos(ga) * (r - 3))
-    gy = cy + round(math.sin(ga) * (r - 3))
-    draw.line([gx - 3, gy - 1, gx + 1, gy - 4], fill=y, width=1)
+        d.rectangle(box, fill=EDGE)
+        d.rectangle([x0 + 2, y0 + 2, x1 - 2, y1 - 2], fill=face)
+        d.line([x0 + 2, y0 + 2, x1 - 2, y0 + 2], fill=hi, width=2)
+        d.line([x0 + 2, y0 + 2, x0 + 2, y1 - 2], fill=hi, width=2)
+        d.line([x0 + 2, y1 - 2, x1 - 2, y1 - 2], fill=lo, width=2)
+        d.line([x1 - 2, y0 + 2, x1 - 2, y1 - 2], fill=lo, width=2)
 
 
-def crystal(img, cx, cy, half_w, half_h):
-    draw = ImageDraw.Draw(img)
-    outer = [
-        (cx, cy - half_h),
-        (cx + half_w, cy - half_h // 3),
-        (cx + half_w * 3 // 5, cy + half_h * 3 // 5),
-        (cx, cy + half_h),
-        (cx - half_w * 3 // 5, cy + half_h * 3 // 5),
-        (cx - half_w, cy - half_h // 3),
+def amber_rail(img, x0, x1, y, on=6, off=3, thick=2):
+    """Dashed energy rail (horizontal)."""
+    d = ImageDraw.Draw(img)
+    x = x0
+    while x <= x1:
+        xe = min(x + on - 1, x1)
+        d.rectangle([x, y, xe, y + thick - 1], fill=A_DEEP)
+        if xe >= x + 2:
+            d.rectangle([x + 1, y, xe - 1, y + thick - 2], fill=A_MID)
+            d.line([x + 1, y, xe - 1, y], fill=A_HOT)
+        elif xe > x:
+            d.rectangle([x, y, xe, y + thick - 2], fill=A_MID)
+        x += on + off
+
+
+def coil(img, x0, x1, y):
+    d = ImageDraw.Draw(img)
+    d.line([x0, y, x1, y], fill=A_DEEP, width=2)
+    d.line([x0, y, x1, y], fill=A_MID)
+    d.line([x0 + 1, y - 1, x1 - 1, y - 1], fill=A_HOT)
+
+
+def shard(img, cx, base, w, h, lean=0):
+    """Faceted Bayugo shard, lit from the upper left like vanilla art."""
+    d = ImageDraw.Draw(img)
+    tip = (cx + lean, base - h)
+    pts = [
+        tip,
+        (cx + w, base - h * 0.40),
+        (cx + w * 0.58, base),
+        (cx - w * 0.58, base),
+        (cx - w, base - h * 0.40),
     ]
-    draw.polygon(outer, fill=K)
-    iw, ih = max(1, half_w - 2), max(1, half_h - 2)
-    body = [
-        (cx, cy - ih),
-        (cx + iw, cy - ih // 3),
-        (cx + iw * 3 // 5, cy + ih * 3 // 5),
-        (cx, cy + ih),
-        (cx - iw * 3 // 5, cy + ih * 3 // 5),
-        (cx - iw, cy - ih // 3),
+    d.polygon(pts, fill=C_MID)
+    d.polygon([tip, (cx + w, base - h * 0.40), (cx + w * 0.58, base), (cx, base)], fill=C_DARK)
+    d.polygon([tip, (cx - w, base - h * 0.40), (cx - w * 0.40, base), (cx, base)], fill=C_HI)
+    d.line(pts + [pts[0]], fill=C_DEEP)
+    d.line([tip, (cx, base)], fill=C_DEEP)
+
+
+def gold_shard(img, cx, base, w, h, lean=0):
+    """Gold-faceted shard - the Bayugo Crystal item icon has one of these."""
+    d = ImageDraw.Draw(img)
+    tip = (cx + lean, base - h)
+    pts = [
+        tip,
+        (cx + w, base - h * 0.40),
+        (cx + w * 0.58, base),
+        (cx - w * 0.58, base),
+        (cx - w, base - h * 0.40),
     ]
-    draw.polygon(body, fill=C)
-    # lit left facet + darker right facet
-    draw.polygon([body[0], body[5], body[4], (cx, cy + ih // 3)], fill=H)
-    draw.polygon([body[0], body[1], body[2], (cx, cy + ih // 3)], fill=c)
-    draw.point([cx, cy - ih + 2], fill=w)
+    d.polygon(pts, fill=A_MID)
+    d.polygon([tip, (cx + w, base - h * 0.40), (cx + w * 0.58, base), (cx, base)], fill=A_DEEP)
+    d.polygon([tip, (cx - w, base - h * 0.40), (cx - w * 0.40, base), (cx, base)], fill=A_HOT)
+    d.line(pts + [pts[0]], fill=A_DEEP)
+    d.line([tip, (cx, base)], fill=A_DEEP)
+    d.point([tip[0], tip[1] + 1], fill=A_WHITE)
 
 
-def crystal_socket(img, cx, cy, half_w, half_h, socket=True):
-    """Bayugo crystal set into a gold ring, used on hulls and injectors."""
-    draw = ImageDraw.Draw(img)
-    if socket:
-        disc(draw, cx, cy, half_w + 5, K)
-        disc(draw, cx, cy, half_w + 3, G)
-        disc(draw, cx, cy, half_w + 1, T)
-        disc(draw, cx, cy, half_w - 1, D)
-    crystal(img, cx, cy, half_w, half_h)
+# ---------------------------------------------------------------------------
+# B.B Collider - 5x5, no crystals
+# ---------------------------------------------------------------------------
 
 
-def corner_plate(img, box, cap=False):
-    panel(img, box, fill=m, hi=W, lo=d)
+def bb_base():
+    img = restyle(load_vanilla("core-nucleus"), NUCLEUS, [EDGE, DARK, MID])
+    d = ImageDraw.Draw(img)
+    # distributor-style sockets on the four edges
+    for box in ((66, 6, 94, 16), (66, 143, 94, 153), (6, 66, 16, 94), (143, 66, 153, 94)):
+        d.rectangle(box, fill=EDGE)
+        x0, y0, x1, y1 = box
+        d.rectangle([x0 + 2, y0 + 2, x1 - 2, y1 - 2], fill=DARK)
+        d.line([x0 + 2, y0 + 2, x1 - 2, y0 + 2], fill=MID)
+    # corner clamps
+    for cx, cy in ((22, 22), (137, 22), (22, 137), (137, 137)):
+        bolt(img, cx, cy, 3, face=MID)
+    # status lamps
+    for cx, cy in ((80, 24), (80, 135), (24, 80), (135, 80)):
+        d.rectangle([cx - 2, cy - 2, cx + 2, cy + 2], fill=EDGE)
+        d.rectangle([cx - 1, cy - 1, cx + 1, cy + 1], fill=A_MID)
+        d.point([cx - 1, cy - 1], fill=A_WHITE)
+    return img
+
+
+def bb_housing(img):
+    """Heavy accelerator frame, bolted into the vanilla nucleus centre."""
+    d = ImageDraw.Draw(img)
+    # diagonal struts, so the frame reads as part of the vanilla structure
+    for sx, sy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+        x0, y0 = 80 + sx * 30, 80 + sy * 30
+        x1, y1 = 80 + sx * 63, 80 + sy * 63
+        d.line([x0, y0, x1, y1], fill=EDGE, width=13)
+        d.line([x0, y0, x1, y1], fill=DARK, width=9)
+        d.line([x0 - 1, y0 - 1, x1 - 1, y1 - 1], fill=MID, width=2)
+        bolt(img, x1, y1, 3, face=MID)
+    panel(img, (28, 28, 131, 131), radius=10, face=DARK, hi=MID, lo=EDGE)
+    # inner recess
+    d.rectangle([38, 38, 121, 121], fill=EDGE)
+    d.rectangle([40, 40, 119, 119], fill=DARK)
+    d.line([40, 40, 119, 40], fill=EDGE, width=1)
+    d.line([40, 40, 40, 119], fill=EDGE, width=1)
+    # corner bolts
+    for cx, cy in ((33, 33), (126, 33), (33, 126), (126, 126)):
+        bolt(img, cx, cy, 2, face=MID)
+    return img
+
+
+def bb_cap(img, box, stripes=5):
     x0, y0, x1, y1 = box
-    inset(img, [x0 + 4, y0 + 4, x1 - 4, y1 - 4], fill=d, hi=K, lo=m)
-    draw = ImageDraw.Draw(img)
-    if cap:
-        draw.rectangle([x0 + 2, y0 + 2, x1 - 2, y0 + 5], fill=G)
-        draw.line([x0 + 2, y0 + 5, x1 - 2, y0 + 5], fill=g)
-    for bx, by in ((x0 + 3, y1 - 3), (x1 - 3, y1 - 3), (x0 + 3, y0 + 8), (x1 - 3, y0 + 8)):
-        bolt(draw, bx, by)
+    panel(img, box, face=DARK, hi=MID, lo=EDGE)
+    for i in range(stripes):
+        y = y0 + 6 + i * ((y1 - y0 - 10) // max(1, stripes - 1))
+        coil(img, x0 + 4, x1 - 4, y)
 
 
-def hazard_band(img, box, stripe=7):
-    hazard(img, box, stripe=stripe)
-
-
-# ---------------------------------------------------------------------------
-# B.B Collider designs (160x160, 5x5)
-# ---------------------------------------------------------------------------
-
-BB = 160
-
-
-def bb_torus():
-    img = chassis(BB, cut=18, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
-
-    # corner capacitor banks
-    for box in ((14, 14, 38, 38), (122, 14, 146, 38), (14, 122, 38, 146), (122, 122, 146, 146)):
-        corner_plate(img, box, cap=True)
-        cx = (box[0] + box[2]) // 2
-        cy = (box[1] + box[3]) // 2
-        for yy in range(box[1] + 10, box[3] - 4, 5):
-            draw.line([box[0] + 7, yy, box[2] - 7, yy], fill=K)
-        draw.point([cx, cy], fill=C)
-
-    # main torus chamber
-    arc_reactor(img, 80, 80, 50, spokes=14, triangle=True)
-
-    # four armour clamps reaching toward the ring
-    for box in ((40, 22, 64, 34), (96, 22, 120, 34), (40, 126, 64, 138), (96, 126, 120, 138)):
-        panel(img, box, fill=m, hi=W, lo=d)
-        inset(img, [box[0] + 3, box[1] + 3, box[2] - 3, box[3] - 3], fill=T, hi=K, lo=c)
-        draw.line([box[0] + 6, (box[1] + box[3]) // 2, box[2] - 6, (box[1] + box[3]) // 2], fill=C)
-
-    # feed pipes into the chamber
-    pipe(img, 8, 74, 29, 86, conduit=True)
-    pipe(img, 131, 74, 152, 86, conduit=True)
-    vpipe(img, 74, 8, 86, 29, conduit=True)
-    vpipe(img, 74, 131, 86, 152, conduit=True)
-
-    # crystal tell-tales in the ring quadrants
-    for cx, cy in ((52, 52), (108, 52), (52, 108), (108, 108)):
-        crystal_socket(img, cx, cy, 5, 8, socket=False)
-
-    hazard_band(img, [52, 144, 108, 151])
+def bb_beam_press():
+    """A - Beam Press: two capped bores driving a beam into a focal gap."""
+    img = bb_base()
+    bb_housing(img)
+    d = ImageDraw.Draw(img)
+    bb_cap(img, (40, 50, 58, 109), stripes=5)
+    bb_cap(img, (101, 50, 119, 109), stripes=5)
+    # accelerator barrels facing the gap
+    for x0, x1 in ((58, 70), (89, 101)):
+        d.rectangle([x0, 72, x1, 88], fill=EDGE)
+        d.rectangle([x0 + 1, 73, x1 - 1, 87], fill=MID)
+        d.rectangle([x0 + 2, 75, x1 - 2, 85], fill=DARK)
+        d.line([x0 + 2, 75, x1 - 2, 75], fill=LIGHT)
+        d.line([x0 + 2, 75, x0 + 2, 85], fill=LIGHT)
+    # focal gap
+    d.rectangle([70, 70, 89, 90], fill=EDGE)
+    d.rectangle([72, 72, 87, 88], fill=DARK)
+    amber_rail(img, 72, 87, 79, on=4, off=2, thick=2)
+    d.line([79, 72, 79, 88], fill=A_HOT)
+    d.line([74, 80, 85, 80], fill=A_HOT)
+    d.rectangle([78, 79, 80, 81], fill=A_WHITE)
+    for px, py in ((77, 78), (81, 82), (77, 82), (81, 78)):
+        d.point([px, py], fill=A_WHITE)
     return img
 
 
-def bb_twin_rails():
-    img = chassis(BB, cut=8, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
-
-    # two accelerator rails
-    for y0 in (32, 118):
-        panel(img, [22, y0, 138, y0 + 12], fill=d, hi=L, lo=K)
-        draw.rectangle([22, y0 + 3, 138, y0 + 9], fill=D)
-        for x in (30, 62, 94, 126):
-            draw.rectangle([x, y0 - 3, x + 7, y0 + 15], fill=K)
-            draw.rectangle([x + 1, y0 - 2, x + 6, y0 + 14], fill=G)
-            draw.rectangle([x + 2, y0 - 1, x + 4, y0 + 13], fill=g)
-            draw.point([x + 2, y0 - 1], fill=y)
-        for x in range(26, 136, 8):
-            draw.line([x, y0 + 6, min(x + 4, 136), y0 + 6], fill=C)
-
-    # central collision chamber
-    cx, cy, r = 80, 80, 40
-    draw.polygon([
-        (cx + round(math.cos(math.radians(a)) * (r + 4)),
-         cy + round(math.sin(math.radians(a)) * (r + 4))) for a in range(0, 360, 45)
-    ], fill=K)
-    draw.polygon([
-        (cx + round(math.cos(math.radians(a)) * r),
-         cy + round(math.sin(math.radians(a)) * r)) for a in range(0, 360, 45)
-    ], fill=m)
-    draw.polygon([
-        (cx + round(math.cos(math.radians(a)) * (r - 4)),
-         cy + round(math.sin(math.radians(a)) * (r - 4))) for a in range(0, 360, 45)
-    ], fill=D)
-    draw.polygon([
-        (cx + round(math.cos(math.radians(a)) * (r - 10)),
-         cy + round(math.sin(math.radians(a)) * (r - 10))) for a in range(0, 360, 45)
-    ], fill=T)
-    draw.polygon([
-        (cx + round(math.cos(math.radians(a)) * (r - 16)),
-         cy + round(math.sin(math.radians(a)) * (r - 16))) for a in range(0, 360, 45)
-    ], fill=c)
-    for a in range(0, 360, 60):
-        x0 = cx + round(math.cos(math.radians(a)) * (r - 24))
-        y0 = cy + round(math.sin(math.radians(a)) * (r - 24))
-        x1 = cx + round(math.cos(math.radians(a)) * (r - 8))
-        y1 = cy + round(math.sin(math.radians(a)) * (r - 8))
-        draw.line([x0, y0, x1, y1], fill=T)
-
-    # collision flash: four-point star
-    star = []
-    for i in range(8):
-        a = math.radians(i * 45 - 90)
-        rad = 24 if i % 2 == 0 else 7
-        star.append((cx + round(math.cos(a) * rad), cy + round(math.sin(a) * rad)))
-    draw.polygon(star, fill=K)
-    star = [(int(x * 0.92 + cx * 0.08), int(y * 0.92 + cy * 0.08)) for x, y in star]
-    draw.polygon(star, fill=H)
-    draw.polygon([(cx + (x - cx) * 0.55, cy + (y - cy) * 0.55) for x, y in star], fill=w)
-
-    for a in range(0, 360, 45):
-        bx = cx + round(math.cos(math.radians(a)) * (r - 1))
-        by = cy + round(math.sin(math.radians(a)) * (r - 1))
-        bolt(draw, bx, by)
-
-    # pistons tying the rails to the chamber
-    for x in (58, 94):
-        panel(img, [x, 44, x + 8, 52], fill=L, hi=W, lo=D)
-        panel(img, [x, 108, x + 8, 116], fill=L, hi=W, lo=D)
-
-    # crystal injectors on the flanks
-    for cx2 in (18, 142):
-        panel(img, [cx2 - 8, 62, cx2 + 8, 98], fill=m, hi=W, lo=d)
-        inset(img, [cx2 - 5, 67, cx2 + 5, 93], fill=D, hi=K, lo=m)
-        crystal(img, cx2, 80, 7, 12)
-
-    hazard_band(img, [52, 146, 108, 153])
+def bb_twin_bore():
+    """B - Twin Bore: two vertical accelerator bores bridged at the waist."""
+    img = bb_base()
+    bb_housing(img)
+    d = ImageDraw.Draw(img)
+    for bx in (56, 103):
+        d.rectangle([bx - 11, 46, bx + 11, 113], fill=EDGE)
+        d.rectangle([bx - 9, 48, bx + 9, 111], fill=MID)
+        d.rectangle([bx - 7, 50, bx + 7, 109], fill=DARK)
+        d.rectangle([bx - 5, 52, bx + 5, 107], fill=EDGE)
+        d.rectangle([bx - 2, 54, bx + 2, 105], fill=A_DEEP)
+        d.rectangle([bx - 1, 54, bx + 1, 105], fill=A_HOT)
+        for y in (58, 70, 82, 94, 104):
+            d.rectangle([bx - 8, y, bx + 8, y + 2], fill=EDGE)
+            d.line([bx - 7, y + 1, bx + 7, y + 1], fill=A_MID)
+    # bridge chamber
+    panel(img, (64, 71, 95, 89), face=DARK, hi=MID, lo=EDGE)
+    d.rectangle([74, 75, 85, 85], fill=EDGE)
+    d.rectangle([76, 77, 83, 83], fill=A_DEEP)
+    d.rectangle([78, 78, 81, 82], fill=A_WHITE)
     return img
 
 
-def bb_hex():
-    img = chassis(BB, cut=24, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
+def bb_cyclotron():
+    """C - Cyclotron: quadruple magnet ring around a hot focus."""
+    img = bb_base()
+    bb_housing(img)
+    d = ImageDraw.Draw(img)
+    octo(img, 80, 80, 40, EDGE)
+    octo(img, 80, 80, 36, MID)
+    octo(img, 80, 80, 33, DARK)
+    octo(img, 80, 80, 28, EDGE)
+    octo(img, 80, 80, 25, DARK)
+    # lit rim, upper left only
+    pts = octagon(80, 80, 36, MID)
+    for a, b in ((0, 1), (1, 2), (7, 0)):
+        d.line([pts[a], pts[b]], fill=LIGHT, width=1)
+    # magnets
+    for ang in (0, 90, 180, 270):
+        a = math.radians(ang)
+        mx = int(80 + 34 * math.cos(a))
+        my = int(80 + 34 * math.sin(a))
+        if ang in (0, 180):
+            d.rectangle([mx - 6, my - 12, mx + 6, my + 12], fill=EDGE)
+            d.rectangle([mx - 4, my - 10, mx + 4, my + 10], fill=MID)
+            d.rectangle([mx - 3, my - 8, mx + 3, my + 8], fill=DARK)
+            for yy in range(my - 6, my + 7, 5):
+                d.line([mx - 2, yy, mx + 2, yy], fill=A_MID)
+        else:
+            d.rectangle([mx - 12, my - 6, mx + 12, my + 6], fill=EDGE)
+            d.rectangle([mx - 10, my - 4, mx + 10, my + 4], fill=MID)
+            d.rectangle([mx - 8, my - 3, mx + 8, my + 3], fill=DARK)
+            for xx in range(mx - 6, mx + 7, 5):
+                d.line([xx, my - 2, xx, my + 2], fill=A_MID)
+    # focus
+    d.rectangle([72, 72, 87, 87], fill=EDGE)
+    d.rectangle([74, 74, 85, 85], fill=A_DEEP)
+    d.rectangle([76, 76, 83, 83], fill=A_MID)
+    d.rectangle([78, 78, 81, 81], fill=A_WHITE)
+    return img
 
-    cx, cy, r = 80, 80, 56
 
-    def hexagon(radius):
-        return [
-            (cx, cy - radius),
-            (cx + round(radius * 0.866), cy - radius // 2),
-            (cx + round(radius * 0.866), cy + radius // 2),
-            (cx, cy + radius),
-            (cx - round(radius * 0.866), cy + radius // 2),
-            (cx - round(radius * 0.866), cy - radius // 2),
-        ]
-
-    draw.polygon(hexagon(r + 3), fill=K)
-    draw.polygon(hexagon(r), fill=L)
-    draw.polygon(hexagon(r - 3), fill=m)
-    draw.polygon(hexagon(r - 9), fill=K)
-    draw.polygon(hexagon(r - 11), fill=D)
-    draw.polygon(hexagon(r - 24), fill=K)
-    draw.polygon(hexagon(r - 26), fill=T)
-    draw.polygon(hexagon(r - 33), fill=c)
-    draw.polygon(hexagon(r - 39), fill=C)
-    draw.polygon(hexagon(r - 44), fill=H)
-
-    # layered seams and bolts
-    for i in range(6):
-        a = math.radians(i * 60 - 90)
-        x0 = cx + round(math.cos(a) * (r - 12))
-        y0 = cy + round(math.sin(a) * (r - 12))
-        x1 = cx + round(math.cos(a) * (r - 22))
-        y1 = cy + round(math.sin(a) * (r - 22))
-        draw.line([x0, y0, x1, y1], fill=K)
-        bx = cx + round(math.cos(a) * (r - 6))
-        by = cy + round(math.sin(a) * (r - 6))
-        bolt(draw, bx, by)
-
-    # bright collision core with a crystal shard suspended inside
-    disc(draw, cx, cy, 18, K)
-    disc(draw, cx, cy, 16, G)
-    disc(draw, cx, cy, 13, T)
-    disc(draw, cx, cy, 10, C)
-    crystal(img, cx, cy, 6, 11)
-
-    # six clamp arms around the hex
-    for a in (0, 60, 120, 180, 240, 300):
-        ang = math.radians(a - 90)
-        x0 = cx + round(math.cos(ang) * (r - 2))
-        y0 = cy + round(math.sin(ang) * (r - 2))
-        x1 = cx + round(math.cos(ang) * (r - 18))
-        y1 = cy + round(math.sin(ang) * (r - 18))
-        draw.line([x0, y0, x1, y1], fill=g, width=5)
-        draw.line([x0, y0, x1, y1], fill=G, width=3)
-        draw.point([x1, y1], fill=y)
-
-    # top manifold and bottom drain
-    for x in (62, 78, 94):
-        vpipe(img, x, 8, x + 8, 24, conduit=True)
-    hazard_band(img, [58, 145, 102, 152])
-
-    # flank crystal cells
-    for cx2 in (18, 142):
-        inset(img, [cx2 - 7, 66, cx2 + 7, 94], fill=D, hi=K, lo=m)
-        crystal(img, cx2, 80, 6, 10)
+def bb_press():
+    """D - Anvil Press: guide columns and a hot vertical compression gap."""
+    img = bb_base()
+    bb_housing(img)
+    d = ImageDraw.Draw(img)
+    for x0 in (50, 100):
+        panel(img, (x0, 44, x0 + 10, 116), face=DARK, hi=MID, lo=EDGE)
+        for y in range(50, 112, 12):
+            d.rectangle([x0 + 2, y, x0 + 8, y + 2], fill=EDGE)
+            d.line([x0 + 3, y + 1, x0 + 7, y + 1], fill=A_MID)
+    for y0, y1 in ((50, 71), (89, 110)):
+        panel(img, (62, y0, 99, y1), face=MID, hi=LIGHT, lo=EDGE)
+        d.rectangle([66, y0 + 4, 95, y1 - 4], fill=DARK)
+        d.line([66, y0 + 4, 95, y0 + 4], fill=MID)
+    # pistons
+    panel(img, (74, 42, 86, 50), face=DARK, hi=MID, lo=EDGE)
+    panel(img, (74, 110, 86, 118), face=DARK, hi=MID, lo=EDGE)
+    # heat gap
+    d.rectangle([63, 74, 98, 86], fill=EDGE)
+    d.rectangle([65, 76, 96, 84], fill=A_DEEP)
+    amber_rail(img, 67, 94, 79, on=4, off=2, thick=2)
+    d.rectangle([76, 75, 83, 84], fill=A_HOT)
+    d.rectangle([78, 77, 81, 82], fill=A_WHITE)
     return img
 
 
 def bb_crossfire():
-    img = chassis(BB, cut=6, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
+    """E - Crossfire: four corner emitters converging on a single impact."""
+    img = bb_base()
+    bb_housing(img)
+    d = ImageDraw.Draw(img)
+    for ex, ey, sx, sy in ((50, 50, 1, 1), (109, 50, -1, 1),
+                           (50, 109, 1, -1), (109, 109, -1, -1)):
+        panel(img, (ex - 8, ey - 8, ex + 8, ey + 8), face=DARK, hi=MID, lo=EDGE)
+        d.rectangle([ex - 4, ey - 4, ex + 4, ey + 4], fill=EDGE)
+        d.rectangle([ex - 2, ey - 2, ex + 2, ey + 2], fill=A_MID)
+        d.point([ex - 1, ey - 1], fill=A_WHITE)
+        # stepped beam toward the centre
+        for i in range(1, 9):
+            bx = ex + sx * i * 3
+            by = ey + sy * i * 3
+            col = A_HOT if i % 3 else A_DEEP
+            d.rectangle([bx - 1, by - 1, bx + 1, by + 1], fill=col)
+    # focus
+    d.rectangle([73, 73, 86, 86], fill=EDGE)
+    d.rectangle([75, 75, 84, 84], fill=A_DEEP)
+    d.rectangle([77, 77, 82, 82], fill=A_MID)
+    d.rectangle([78, 78, 81, 81], fill=A_WHITE)
+    d.line([70, 80, 89, 80], fill=A_HOT)
+    d.line([80, 70, 80, 89], fill=A_HOT)
+    return img
 
-    # armoured mount around a circular reaction chamber
-    panel(img, [42, 42, 118, 118], fill=L, hi=W, lo=d)
-    inset(img, [48, 48, 112, 112], fill=D, hi=K, lo=m)
-    disc(draw, 80, 80, 30, K)
-    disc(draw, 80, 80, 27, T)
-    disc(draw, 80, 80, 23, c)
-    disc(draw, 80, 80, 19, C)
-    disc(draw, 80, 80, 15, H)
-    for a in range(45, 360, 90):
-        bx = 80 + round(math.cos(math.radians(a)) * 25)
-        by = 80 + round(math.sin(math.radians(a)) * 25)
-        bolt(draw, bx, by)
 
-    # crossing energy blades
-    for a in (0, 90):
-        if a == 0:
-            draw.polygon([(58, 76), (102, 76), (102, 84), (58, 84)], fill=K)
-            draw.polygon([(60, 78), (100, 78), (100, 82), (60, 82)], fill=w)
+# ---------------------------------------------------------------------------
+# Core Link - 7x7, Bayugo crystal application
+# ---------------------------------------------------------------------------
+
+
+def cl_platform():
+    """7x7 Distributor-styled platform for the core module to sit on."""
+    img = Image.new("RGBA", (CL, CL), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    # full-bleed footprint, like the vanilla core and distributor sprites:
+    # the silhouette is cut back with shaded corner bevels instead of alpha.
+    d.rectangle([0, 0, CL - 1, CL - 1], fill=EDGE)
+    octo(img, 112, 112, 109, DARK, cut=46)
+    pts = octagon(112, 112, 109, DARK, 46)
+    for a, b in ((0, 1), (1, 2), (7, 0)):
+        d.line([pts[a], pts[b]], fill=MID, width=2)
+    for a, b in ((3, 4), (4, 5), (5, 6)):
+        d.line([pts[a], pts[b]], fill=EDGE, width=2)
+    # corner plates (Distributor sockets read as heavy corner clamps)
+    for x0, y0, x1, y1 in ((6, 6, 30, 30), (CL - 31, 6, CL - 7, 30),
+                           (6, CL - 31, 30, CL - 7), (CL - 31, CL - 31, CL - 7, CL - 7)):
+        d.rectangle([x0, y0, x1, y1], fill=EDGE)
+        d.rectangle([x0 + 1, y0 + 1, x1 - 1, y1 - 1], fill=MID)
+        d.rectangle([x0 + 3, y0 + 3, x1 - 3, y1 - 3], fill=DARK)
+        d.line([x0 + 3, y0 + 3, x1 - 3, y0 + 3], fill=EDGE)
+        d.line([x0 + 3, y0 + 3, x0 + 3, y1 - 3], fill=EDGE)
+        d.line([x0 + 1, y0 + 1, x1 - 1, y0 + 1], fill=LIGHT)
+        bolt(img, (x0 + x1) // 2, (y0 + y1) // 2, 3, face=MID)
+    # side clamp blocks
+    for x0, y0, x1, y1 in ((96, 4, 128, 15), (96, CL - 16, 128, CL - 5),
+                           (4, 96, 15, 128), (CL - 16, 96, CL - 5, 128)):
+        d.rectangle([x0, y0, x1, y1], fill=EDGE)
+        d.rectangle([x0 + 2, y0 + 2, x1 - 2, y1 - 2], fill=DARK)
+        d.line([x0 + 2, y0 + 2, x1 - 2, y0 + 2], fill=MID)
+        d.line([x0 + 2, y0 + 2, x0 + 2, y1 - 2], fill=MID)
+    return img
+
+
+def cl_crystal_window(img, cx, cy, vertical=True):
+    """Small Bayugo sight-glass set into the outer platform."""
+    d = ImageDraw.Draw(img)
+    w, h = 6, 11
+    if vertical:
+        d.rectangle([cx - w - 3, cy - h - 3, cx + w + 3, cy + h + 3], fill=EDGE)
+        d.rectangle([cx - w - 1, cy - h - 1, cx + w + 1, cy + h + 1], fill=DARK)
+        d.line([cx - w, cy - h, cx + w, cy - h], fill=MID)
+        shard(img, cx, cy + h, w - 1, 2 * h - 2)
+    else:
+        d.rectangle([cx - h - 3, cy - w - 3, cx + h + 3, cy + w + 3], fill=EDGE)
+        d.rectangle([cx - h - 1, cy - w - 1, cx + h + 1, cy + w + 1], fill=DARK)
+        d.line([cx - h, cy - w, cx - h, cy + w], fill=MID)
+        shard(img, cx, cy + w, w - 1, 2 * h - 2)
+
+
+def cl_base(with_windows=True):
+    img = cl_platform()
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([29, 29, 194, 194], radius=15, fill=EDGE)
+    d.rounded_rectangle([30, 31, 195, 195], radius=15, fill=EDGE)
+    module = restyle(load_vanilla("core-nucleus"), NUCLEUS, [DARK, MID, LIGHT])
+    img.alpha_composite(module, (32, 32))
+    if with_windows:
+        for cx, cy in ((112, 15), (209, 112), (112, 209), (15, 112)):
+            cl_crystal_window(img, cx, cy, vertical=(cx == 112))
+    return img
+
+
+def cl_deck(img, deck_r=58, vault_r=44):
+    """Flat deck + recessed vault, sitting inside the vanilla nucleus rings."""
+    d = ImageDraw.Draw(img)
+    octo(img, 112, 112, deck_r + 4, EDGE)
+    octo(img, 112, 112, deck_r, DARK)
+    pts = octagon(112, 112, deck_r, DARK)
+    for a, b in ((0, 1), (1, 2), (7, 0)):
+        d.line([pts[a], pts[b]], fill=MID, width=2)
+    # vault recess
+    octo(img, 112, 112, vault_r, EDGE)
+    octo(img, 112, 112, vault_r - 3, DARK)
+    octo(img, 112, 112, vault_r - 6, EDGE)
+    octo(img, 112, 112, vault_r - 10, DARK)
+    pts = octagon(112, 112, vault_r - 3, MID)
+    for a, b in ((0, 1), (1, 2), (7, 0)):
+        d.line([pts[a], pts[b]], fill=MID)
+    # deck clamps at the diagonals
+    for ang in (45, 135, 225, 315):
+        a = math.radians(ang)
+        bx = int(112 + (deck_r + 1) * math.cos(a))
+        by = int(112 + (deck_r + 1) * math.sin(a))
+        bolt(img, bx, by, 3, face=MID)
+
+
+def cl_dais(img, w=40):
+    d = ImageDraw.Draw(img)
+    d.rectangle([112 - w, 132, 112 + w, 146], fill=EDGE)
+    d.rectangle([112 - w + 2, 133, 112 + w - 2, 145], fill=DARK)
+    d.line([112 - w + 2, 133, 112 + w - 2, 133], fill=MID)
+    d.rectangle([112 - 12, 144, 112 + 12, 150], fill=EDGE)
+    d.rectangle([112 - 10, 145, 112 + 10, 149], fill=C_DEEP)
+    d.line([112 - 10, 145, 112 + 10, 145], fill=C_DARK)
+
+
+def cl_trinity():
+    """A - Trinity Cluster: three shards on an octagonal dais."""
+    img = cl_base()
+    cl_deck(img)
+    cl_dais(img)
+    shard(img, 90, 136, 7, 34, lean=-2)
+    gold_shard(img, 134, 136, 7, 36, lean=2)
+    shard(img, 112, 144, 9, 56)
+    # corner inlays on the vault floor
+    for dx, dy in ((-34, -34), (34, -34), (-34, 34), (34, 34)):
+        shard(img, 112 + dx, 112 + dy + 7, 4, 13)
+    return img
+
+
+def cl_prism():
+    """B - Prism Heart: one large faceted gem in a round socket."""
+    img = cl_base()
+    cl_deck(img)
+    d = ImageDraw.Draw(img)
+    for rr, col in ((36, EDGE), (33, DARK), (30, EDGE), (27, DARK)):
+        d.ellipse([112 - rr, 112 - rr, 112 + rr, 112 + rr], fill=col)
+    d.arc([112 - 33, 112 - 33, 112 + 33, 112 + 33], 180, 270, fill=MID, width=2)
+    # teal outer gem
+    pts = [(112, 76), (130, 108), (122, 138), (112, 146), (102, 138), (94, 108)]
+    d.polygon(pts, fill=C_MID)
+    d.polygon([(112, 76), (94, 108), (102, 138), (112, 146)], fill=C_HI)
+    d.polygon([(112, 76), (112, 146), (122, 138), (130, 108)], fill=C_DARK)
+    d.line(pts + [pts[0]], fill=C_DEEP)
+    d.line([(112, 76), (112, 146)], fill=C_DEEP)
+    d.line([(94, 108), (130, 108)], fill=C_DEEP)
+    # gold inner facet
+    d.polygon([(112, 92), (124, 110), (112, 132), (100, 110)], fill=A_MID)
+    d.polygon([(112, 92), (100, 110), (112, 132)], fill=A_HOT)
+    d.line([(112, 92), (124, 110), (112, 132), (100, 110), (112, 92)], fill=A_DEEP)
+    d.line([(112, 92), (112, 132)], fill=A_DEEP)
+    # socket studs
+    for ang in range(0, 360, 45):
+        a = math.radians(ang)
+        sx = int(112 + 40 * math.cos(a))
+        sy = int(112 + 40 * math.sin(a))
+        bolt(img, sx, sy, 2, face=MID)
+    return img
+
+
+def cl_ring():
+    """C - Crystal Ring: alternating shards orbiting a bright core."""
+    img = cl_base()
+    cl_deck(img)
+    d = ImageDraw.Draw(img)
+    d.ellipse([112 - 29, 112 - 29, 112 + 29, 112 + 29], fill=EDGE)
+    d.ellipse([112 - 26, 112 - 26, 112 + 26, 112 + 26], fill=DARK)
+    d.arc([112 - 26, 112 - 26, 112 + 26, 112 + 26], 180, 270, fill=MID, width=2)
+    d.ellipse([112 - 12, 112 - 12, 112 + 12, 112 + 12], fill=C_DEEP)
+    d.ellipse([112 - 8, 112 - 8, 112 + 8, 112 + 8], fill=C_DARK)
+    d.ellipse([112 - 4, 112 - 4, 112 + 4, 112 + 4], fill=C_HI)
+    for i, ang in enumerate(range(0, 360, 60)):
+        a = math.radians(ang)
+        sx = int(112 + 37 * math.cos(a))
+        sy = int(112 + 37 * math.sin(a))
+        if i % 3 == 1:
+            gold_shard(img, sx, sy + 9, 5, 24)
         else:
-            draw.polygon([(76, 58), (84, 58), (84, 102), (76, 102)], fill=K)
-            draw.polygon([(78, 60), (82, 60), (82, 100), (78, 100)], fill=w)
-
-    # suspended crystal at the crossing point
-    crystal(img, 80, 80, 8, 14)
-
-    # four emitters aimed at the chamber
-    emitters = (
-        (74, 12, 86, 44, "v"),
-        (74, 116, 86, 148, "v"),
-        (12, 74, 44, 86, "h"),
-        (116, 74, 148, 86, "h"),
-    )
-    for x0, y0, x1, y1, axis in emitters:
-        panel(img, [x0, y0, x1, y1], fill=m, hi=W, lo=d)
-        if axis == "v":
-            inset(img, [x0 + 4, y0 + 5, x1 - 4, y1 - 3], fill=D, hi=K, lo=m)
-            draw.rectangle([x0 + 2, y1 - 8, x1 - 2, y1 - 3], fill=K)
-            draw.rectangle([x0 + 3, y1 - 8, x1 - 3, y1 - 5], fill=G)
-            draw.rectangle([x0 + 4, y1 - 8, x1 - 4, y1 - 6], fill=y)
-            for yy in range(y0 + 8, y1 - 10, 6):
-                draw.line([x0 + 6, yy, x1 - 6, yy], fill=T)
-                draw.line([x0 + 6, yy, x1 - 8, yy], fill=C)
-        else:
-            inset(img, [x0 + 5, y0 + 4, x1 - 3, y1 - 4], fill=D, hi=K, lo=m)
-            draw.rectangle([x1 - 8, y0 + 2, x1 - 3, y1 - 2], fill=K)
-            draw.rectangle([x1 - 8, y0 + 3, x1 - 5, y1 - 3], fill=G)
-            draw.rectangle([x1 - 8, y0 + 4, x1 - 6, y1 - 4], fill=y)
-            for xx in range(x0 + 8, x1 - 10, 6):
-                draw.line([xx, y0 + 6, xx, y1 - 6], fill=T)
-                draw.line([xx, y0 + 6, xx, y1 - 8], fill=C)
-
-    # corner capacitor blocks
-    for box in ((12, 12, 36, 36), (124, 12, 148, 36), (12, 124, 36, 148), (124, 124, 148, 148)):
-        corner_plate(img, box, cap=False)
-        vent(img, [box[0] + 7, box[1] + 8, box[2] - 7, box[3] - 9], slats=3)
-        cx = (box[0] + box[2]) // 2
-        crystal_socket(img, cx, box[1] + 5, 4, 4, socket=False)
-
-    hazard_band(img, [52, 148, 108, 154], stripe=6)
+            shard(img, sx, sy + 9, 5, 24)
     return img
 
 
-def bb_monolith():
-    img = chassis(BB, cut=12, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
+def cl_nexus():
+    """D - Nexus Cross: four crystal arms around a central lens."""
+    img = cl_base()
+    cl_deck(img)
+    d = ImageDraw.Draw(img)
+    d.rectangle([104, 74, 121, 153], fill=EDGE)
+    d.rectangle([74, 104, 153, 121], fill=EDGE)
+    d.rectangle([106, 76, 119, 151], fill=DARK)
+    d.rectangle([76, 106, 151, 119], fill=DARK)
+    d.line([106, 76, 119, 76], fill=MID)
+    d.line([76, 106, 76, 119], fill=MID)
+    shard(img, 112, 88, 7, 22)
+    gold_shard(img, 112, 150, 7, 22)
+    shard(img, 88, 128, 7, 22)
+    shard(img, 136, 128, 7, 22)
+    d.ellipse([112 - 18, 112 - 18, 112 + 18, 112 + 18], fill=EDGE)
+    d.ellipse([112 - 15, 112 - 15, 112 + 15, 112 + 15], fill=C_DEEP)
+    d.ellipse([112 - 10, 112 - 10, 112 + 10, 112 + 10], fill=C_DARK)
+    d.ellipse([112 - 4, 112 - 4, 112 + 4, 112 + 4], fill=C_HI)
+    return img
 
-    # central pressure column
-    panel(img, [52, 20, 108, 140], fill=m, hi=W, lo=d)
-    inset(img, [57, 26, 103, 134], fill=D, hi=K, lo=m)
 
-    # gold top cap with a pair of crystal indicators
-    panel(img, [55, 17, 105, 29], fill=G, hi=y, lo=g)
-    draw.line([57, 25, 103, 25], fill=g)
-    for cx in (72, 88):
-        crystal_socket(img, cx, 23, 4, 6, socket=False)
-
-    # stacked collar bands
-    for y0 in (38, 96):
-        panel(img, [49, y0, 111, y0 + 8], fill=L, hi=W, lo=d)
-        for x in range(54, 108, 9):
-            bolt(draw, x, y0 + 4)
-
-    # main reactor lens
-    arc_reactor(img, 80, 67, 22, spokes=10, triangle=True)
-
-    # lower collision port: hazard throat with a mint glow
-    inset(img, [62, 108, 98, 130], fill=K, hi=K, lo=d)
-    draw.rectangle([66, 112, 94, 126], fill=T)
-    draw.rectangle([70, 115, 90, 123], fill=C)
-    draw.rectangle([74, 117, 86, 121], fill=H)
-    for x in range(64, 98, 8):
-        draw.line([x, 108, x + 4, 114], fill=y)
-        draw.line([x, 130, x + 4, 124], fill=y)
-
-    # side flywheels
-    for cx in (28, 132):
-        disc(draw, cx, 80, 21, K)
-        disc(draw, cx, 80, 18, G)
-        disc(draw, cx, 80, 15, g)
-        disc(draw, cx, 80, 12, m)
-        disc(draw, cx, 80, 5, K)
-        disc(draw, cx, 80, 3, T)
-        for a in range(0, 360, 45):
-            x0 = cx + round(math.cos(math.radians(a)) * 6)
-            y0 = 80 + round(math.sin(math.radians(a)) * 6)
-            x1 = cx + round(math.cos(math.radians(a)) * 14)
-            y1 = 80 + round(math.sin(math.radians(a)) * 14)
-            draw.line([x0, y0, x1, y1], fill=d)
-        # link pipe to column
-        if cx < 80:
-            pipe(img, cx + 18, 76, 58, 84, conduit=True, flanges=False)
-        else:
-            pipe(img, 102, 76, cx - 18, 84, conduit=True, flanges=False)
-
-    # exhaust stacks
-    for x in (60, 88):
-        vpipe(img, x, 8, x + 12, 20, conduit=False)
-
-    # bottom corner vents
-    vent(img, [16, 126, 42, 146], slats=3)
-    vent(img, [118, 126, 144, 146], slats=3)
-    hazard_band(img, [60, 146, 100, 153], stripe=6)
+def cl_vault_door():
+    """E - Vault Door: armoured hatch with a crystal key and corner windows."""
+    img = cl_base(with_windows=False)
+    cl_deck(img, vault_r=51)
+    d = ImageDraw.Draw(img)
+    panel(img, (85, 85, 140, 140), radius=6, face=DARK, hi=MID, lo=EDGE)
+    d.rectangle([94, 94, 131, 131], fill=EDGE)
+    d.rectangle([97, 97, 128, 128], fill=DARK)
+    d.line([97, 97, 128, 97], fill=MID, width=2)
+    d.line([97, 97, 97, 128], fill=MID, width=2)
+    for cx, cy in ((98, 98), (127, 98), (98, 127), (127, 127)):
+        d.rectangle([cx - 5, cy - 5, cx + 5, cy + 5], fill=EDGE)
+        d.rectangle([cx - 3, cy - 3, cx + 3, cy + 3], fill=C_DEEP)
+        d.rectangle([cx - 2, cy - 2, cx + 2, cy + 2], fill=C_MID)
+        d.point([cx - 2, cy - 2], fill=C_HI)
+    shard(img, 112, 127, 9, 36)
+    gold_shard(img, 100, 129, 5, 18, lean=-1)
+    shard(img, 124, 129, 5, 18, lean=1)
+    for ang in (45, 135, 225, 315):
+        a = math.radians(ang)
+        bx = int(112 + 31 * math.cos(a))
+        by = int(112 + 31 * math.sin(a))
+        bolt(img, bx, by, 2, face=MID)
     return img
 
 
 # ---------------------------------------------------------------------------
-# Core Link designs (224x224, 7x7)
+# contact sheets / audit
 # ---------------------------------------------------------------------------
 
-CL = 224
-
-
-def cl_arc_terminal():
-    img = chassis(CL, inset=4, cut=20, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
-
-    # corner pylons
-    for box in ((24, 24, 54, 54), (170, 24, 200, 54), (24, 170, 54, 200), (170, 170, 200, 200)):
-        corner_plate(img, box, cap=True)
-        vent(img, [box[0] + 6, box[1] + 9, box[2] - 6, box[3] - 7], slats=3)
-
-    # four radial trunk conduits to edge terminals
-    pipe(img, 8, 104, 42, 120, conduit=True)
-    pipe(img, 182, 104, 216, 120, conduit=True)
-    vpipe(img, 104, 8, 120, 42, conduit=True)
-    vpipe(img, 104, 182, 120, 216, conduit=True)
-
-    for cx, cy in ((17, 112), (207, 112), (112, 17), (112, 207)):
-        panel(img, [cx - 10, cy - 10, cx + 10, cy + 10], fill=m, hi=W, lo=d)
-        inset(img, [cx - 6, cy - 6, cx + 6, cy + 6], fill=T, hi=K, lo=c)
-        draw.rectangle([cx - 2, cy - 2, cx + 2, cy + 2], fill=H)
-
-    # the chest piece
-    arc_reactor(img, 112, 112, 72, spokes=18, triangle=True)
-
-    # segmented armour struts radiating from the ring
-    for a in range(45, 360, 90):
-        ang = math.radians(a)
-        x0 = 112 + round(math.cos(ang) * 73)
-        y0 = 112 + round(math.sin(ang) * 73)
-        x1 = 112 + round(math.cos(ang) * 91)
-        y1 = 112 + round(math.sin(ang) * 91)
-        draw.line([x0, y0, x1, y1], fill=K, width=7)
-        draw.line([x0, y0, x1, y1], fill=G, width=4)
-        draw.line([x0, y0, x1, y1], fill=y, width=1)
-
-    # ring of crystal indicators
-    for a in range(0, 360, 45):
-        ang = math.radians(a)
-        cx = 112 + round(math.cos(ang) * 84)
-        cy = 112 + round(math.sin(ang) * 84)
-        crystal_socket(img, cx, cy, 4, 6, socket=False)
-
-    hazard_band(img, [82, 198, 142, 205], stripe=6)
-    return img
-
-
-def cl_hex_vault():
-    img = chassis(CL, inset=4, cut=16, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
-    cx, cy = 112, 108
-
-    def hexagon(radius):
-        return [
-            (cx, cy - radius),
-            (cx + round(radius * 0.866), cy - radius // 2),
-            (cx + round(radius * 0.866), cy + radius // 2),
-            (cx, cy + radius),
-            (cx - round(radius * 0.866), cy + radius // 2),
-            (cx - round(radius * 0.866), cy - radius // 2),
-        ]
-
-    draw.polygon(hexagon(88), fill=K)
-    draw.polygon(hexagon(85), fill=L)
-    draw.polygon(hexagon(82), fill=m)
-    draw.polygon(hexagon(73), fill=K)
-    draw.polygon(hexagon(70), fill=D)
-    draw.polygon(hexagon(60), fill=K)
-    draw.polygon(hexagon(58), fill=d)
-
-    # mint seams between the vault layers
-    for i in range(6):
-        a = math.radians(i * 60 - 90)
-        for radius in (82, 70, 58):
-            x0 = cx + round(math.cos(a) * (radius - 1))
-            y0 = cy + round(math.sin(a) * (radius - 1))
-            x1 = cx + round(math.cos(a) * (radius - 8))
-            y1 = cy + round(math.sin(a) * (radius - 8))
-            draw.line([x0, y0, x1, y1], fill=C)
-        bx = cx + round(math.cos(a) * 76)
-        by = cy + round(math.sin(a) * 76)
-        bolt(draw, bx, by)
-
-    # three gold locking bars
-    for x in (78, 108, 138):
-        panel(img, [x, 48, x + 8, 168], fill=G, hi=y, lo=g)
-        draw.line([x + 2, 52, x + 2, 164], fill=g)
-        draw.line([x + 5, 52, x + 5, 164], fill=y)
-        for y0 in (54, 160):
-            bolt(draw, x + 4, y0)
-
-    # central reactor
-    arc_reactor(img, cx, cy, 26, spokes=12, triangle=True)
-
-    # edge ports
-    for px, py in ((112, 16), (112, 200), (16, 108), (208, 108)):
-        panel(img, [px - 12, py - 8, px + 12, py + 8], fill=m, hi=W, lo=d)
-        inset(img, [px - 7, py - 4, px + 7, py + 4], fill=T, hi=K, lo=c)
-        draw.rectangle([px - 2, py - 2, px + 2, py + 2], fill=H)
-
-    # corner anchor blocks
-    for box in ((18, 18, 48, 48), (176, 18, 206, 48), (18, 168, 48, 198), (176, 168, 206, 198)):
-        corner_plate(img, box, cap=False)
-        vent(img, [box[0] + 6, box[1] + 7, box[2] - 6, box[3] - 8], slats=3)
-
-    hazard_band(img, [84, 198, 140, 205], stripe=6)
-    return img
-
-
-def cl_portal():
-    img = chassis(CL, inset=4, cut=14, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
-
-    # heavy portal frame
-    for box in ((38, 38, 186, 186),):
-        panel(img, box, fill=L, hi=W, lo=d)
-        inset(img, [box[0] + 6, box[1] + 6, box[2] - 6, box[3] - 6], fill=m, hi=K, lo=W)
-        inset(img, [box[0] + 12, box[1] + 12, box[2] - 12, box[3] - 12], fill=D, hi=K, lo=m)
-
-    # field aperture
-    draw.rectangle([55, 55, 169, 169], fill=K)
-    draw.rectangle([60, 60, 164, 164], fill=T)
-    for y0 in range(64, 164, 7):
-        draw.line([65, y0, 159, y0], fill=c)
-        draw.line([65, y0 + 2, 159, y0 + 2], fill=C)
-    disc(draw, 112, 112, 42, C)
-    disc(draw, 112, 112, 32, H)
-    crystal(img, 112, 112, 18, 34)
-    crystal(img, 84, 108, 7, 13)
-    crystal(img, 140, 115, 6, 11)
-
-    # frame segmentation and bolts
-    for x in (58, 84, 112, 140, 166):
-        bolt(draw, x, 45)
-        bolt(draw, x, 179)
-    for yy in (58, 84, 112, 140, 166):
-        bolt(draw, 45, yy)
-        bolt(draw, 179, yy)
-    for x in (70, 112, 154):
-        panel(img, [x - 4, 36, x + 4, 46], fill=G, hi=y, lo=g)
-        panel(img, [x - 4, 178, x + 4, 188], fill=G, hi=y, lo=g)
-    for yy in (70, 112, 154):
-        panel(img, [36, yy - 4, 46, yy + 4], fill=G, hi=y, lo=g)
-        panel(img, [178, yy - 4, 188, yy + 4], fill=G, hi=y, lo=g)
-
-    # corner claws
-    for bx, by in ((26, 26), (198, 26), (26, 198), (198, 198)):
-        panel(img, [bx - 9, by - 9, bx + 9, by + 9], fill=m, hi=W, lo=d)
-        draw.rectangle([bx - 5, by - 5, bx + 5, by + 5], fill=K)
-        draw.polygon([(bx - 3, by - 3), (bx + 6, by), (bx, by + 6)], fill=G)
-
-    # radial feeds
-    pipe(img, 10, 106, 36, 118, conduit=True)
-    pipe(img, 188, 106, 214, 118, conduit=True)
-    vpipe(img, 106, 10, 118, 36, conduit=True)
-    vpipe(img, 106, 188, 118, 214, conduit=True)
-
-    hazard_band(img, [78, 198, 146, 205], stripe=6)
-    return img
-
-
-def cl_twin_reactor():
-    img = chassis(CL, inset=4, cut=18, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
-
-    # corner banks
-    for box in ((22, 22, 50, 50), (174, 22, 202, 50), (22, 174, 50, 202), (174, 174, 202, 202)):
-        corner_plate(img, box, cap=True)
-        vent(img, [box[0] + 6, box[1] + 8, box[2] - 6, box[3] - 8], slats=3)
-
-    # central crystal spine first, so the twin rings sit proud of it
-    panel(img, [100, 44, 124, 180], fill=m, hi=W, lo=d)
-    inset(img, [104, 50, 120, 174], fill=D, hi=K, lo=m)
-    draw.line([112, 56, 112, 168], fill=T, width=3)
-    for yy in range(60, 168, 8):
-        draw.line([109, yy, 115, yy], fill=C)
-    crystal(img, 112, 92, 7, 15)
-    crystal(img, 112, 132, 6, 12)
-
-    # twin reactors, tangent to the spine
-    arc_reactor(img, 62, 112, 34, spokes=12, triangle=True)
-    arc_reactor(img, 162, 112, 34, spokes=12, triangle=True)
-
-    # edge feeds running into the outer reactor rings
-    pipe(img, 10, 104, 26, 120, conduit=True)
-    pipe(img, 198, 104, 214, 120, conduit=True)
-
-    # top and bottom node plates
-    for y0, y1 in ((20, 44), (180, 204)):
-        panel(img, [92, y0, 132, y1], fill=m, hi=W, lo=d)
-        inset(img, [97, y0 + 5, 127, y1 - 5], fill=T, hi=K, lo=c)
-        draw.rectangle([106, y0 + 9, 118, y1 - 9], fill=D)
-        crystal_socket(img, 112, (y0 + y1) // 2, 5, 8, socket=False)
-
-    hazard_band(img, [80, 200, 144, 207], stripe=6)
-    return img
-
-
-def cl_octagon_hub():
-    img = chassis(CL, inset=4, cut=26, body=m, floor=D)
-    draw = ImageDraw.Draw(img)
-    cx, cy = 112, 110
-
-    def octa(radius):
-        return [
-            (cx + round(math.cos(math.radians(a)) * radius),
-             cy + round(math.sin(math.radians(a)) * radius))
-            for a in range(22, 360, 45)
-        ]
-
-    draw.polygon(octa(90), fill=K)
-    draw.polygon(octa(87), fill=L)
-    draw.polygon(octa(84), fill=m)
-    draw.polygon(octa(74), fill=K)
-    draw.polygon(octa(72), fill=D)
-    draw.polygon(octa(58), fill=K)
-    draw.polygon(octa(56), fill=d)
-
-    # eight radial ports
-    for i in range(8):
-        ang = math.radians(i * 45 + 22)
-        x0 = cx + round(math.cos(ang) * 56)
-        y0 = cy + round(math.sin(ang) * 56)
-        x1 = cx + round(math.cos(ang) * 92)
-        y1 = cy + round(math.sin(ang) * 92)
-        draw.line([x0, y0, x1, y1], fill=K, width=11)
-        draw.line([x0, y0, x1, y1], fill=G, width=7)
-        draw.line([x0, y0, x1, y1], fill=g, width=3)
-        # mint port light at the rim
-        px = cx + round(math.cos(ang) * 86)
-        py = cy + round(math.sin(ang) * 86)
-        draw.rectangle([px - 3, py - 3, px + 3, py + 3], fill=K)
-        draw.rectangle([px - 2, py - 2, px + 2, py + 2], fill=C)
-        draw.point([px, py], fill=w)
-
-    # rim bolts
-    for i in range(16):
-        ang = math.radians(i * 22.5)
-        bx = cx + round(math.cos(ang) * 79)
-        by = cy + round(math.sin(ang) * 79)
-        bolt(draw, bx, by)
-
-    # central reactor
-    arc_reactor(img, cx, cy, 36, spokes=14, triangle=True)
-
-    # corner braces in the four open corners
-    for bx, by in ((24, 24), (200, 24), (24, 196), (200, 196)):
-        panel(img, [bx - 12, by - 12, bx + 12, by + 12], fill=m, hi=W, lo=d)
-        inset(img, [bx - 7, by - 7, bx + 7, by + 7], fill=D, hi=K, lo=m)
-        bolt(draw, bx - 4, by - 4)
-        bolt(draw, bx + 4, by + 4)
-
-    hazard_band(img, [82, 200, 142, 207], stripe=6)
-    return img
-
-
-# ---------------------------------------------------------------------------
-# contact sheets
-# ---------------------------------------------------------------------------
 
 def load_font(size):
     for path in (
@@ -981,19 +687,19 @@ def contact_sheet(title, subtitle, items, path, scale=1, gap=22, pad=28):
 # ---------------------------------------------------------------------------
 
 BB_DESIGNS = [
-    ("A", "Torus Reactor", bb_torus),
-    ("B", "Twin Rails", bb_twin_rails),
-    ("C", "Hex Chamber", bb_hex),
-    ("D", "Crossfire", bb_crossfire),
-    ("E", "Monolith", bb_monolith),
+    ("A", "Beam Press", bb_beam_press),
+    ("B", "Twin Bore", bb_twin_bore),
+    ("C", "Cyclotron", bb_cyclotron),
+    ("D", "Anvil Press", bb_press),
+    ("E", "Crossfire", bb_crossfire),
 ]
 
 CL_DESIGNS = [
-    ("A", "Arc Terminal", cl_arc_terminal),
-    ("B", "Hex Vault", cl_hex_vault),
-    ("C", "Portal Frame", cl_portal),
-    ("D", "Twin Reactor", cl_twin_reactor),
-    ("E", "Octagon Hub", cl_octagon_hub),
+    ("A", "Trinity Cluster", cl_trinity),
+    ("B", "Prism Heart", cl_prism),
+    ("C", "Crystal Ring", cl_ring),
+    ("D", "Nexus Cross", cl_nexus),
+    ("E", "Vault Door", cl_vault_door),
 ]
 
 # Final in-game art. Change these to swap designs; run the script to reinstall.
@@ -1021,6 +727,25 @@ def audit(name, img):
     return not unknown
 
 
+ASCII_MAP = {
+    EDGE: " ", DARK: ".", MID: ":", LIGHT: "#",
+    C_DEEP: "c", C_DARK: "C", C_MID: "m", C_HI: "H",
+    A_DEEP: "a", A_MID: "A", A_HOT: "g", A_WHITE: "W",
+}
+
+
+def dump_ascii(name, img, step=2):
+    px = img.load()
+    print(f"--- {name} ascii (1 char = {step}px) ---")
+    for y in range(0, img.height, step):
+        line = ""
+        for x in range(0, img.width, step):
+            r, g, b, a = px[x, y]
+            line += "`" if a == 0 else ASCII_MAP.get((r, g, b), "?")
+        print(line)
+    print()
+
+
 def main():
     os.makedirs(DOCS, exist_ok=True)
     os.makedirs(SPRITES, exist_ok=True)
@@ -1030,15 +755,13 @@ def main():
     for letter, label, factory in BB_DESIGNS:
         img = factory()
         ok &= audit(f"bb-{letter}", img)
-        out = os.path.join(DOCS, f"bb-collider-{letter.lower()}.png")
-        img.save(out)
+        img.save(os.path.join(DOCS, f"bb-collider-{letter.lower()}.png"))
         built[("bb-collider", letter)] = img
 
     for letter, label, factory in CL_DESIGNS:
         img = factory()
         ok &= audit(f"cl-{letter}", img)
-        out = os.path.join(DOCS, f"core-link-{letter.lower()}.png")
-        img.save(out)
+        img.save(os.path.join(DOCS, f"core-link-{letter.lower()}.png"))
         built[("core-link", letter)] = img
 
     for name, letter in CHOSEN.items():
@@ -1046,25 +769,31 @@ def main():
         img.save(os.path.join(SPRITES, name + ".png"))
         print(f"installed sprites/{name}.png <- design {letter}")
 
-    bb_items = [(l, n, f()) for l, n, f in BB_DESIGNS]
-    cl_items = [(l, n, f()) for l, n, f in CL_DESIGNS]
+    bb_items = [(l, n, built[("bb-collider", l)]) for l, n, _ in BB_DESIGNS]
+    cl_items = [(l, n, built[("core-link", l)]) for l, n, _ in CL_DESIGNS]
 
     contact_sheet(
-        "B.B Collider - design candidates",
-        "5x5 factory  /  80% vanilla industrial shell, 20% arc-reactor sci-fi  /  grey + Bayugo mint & gold",
+        "B.B Collider - vanilla-derived candidates",
+        "5x5  /  Core: Nucleus shell in Distributor grey  /  industrial accelerator housing, no crystal",
         bb_items,
         os.path.join(DOCS, "bb-collider-designs.png"),
         scale=2,
         gap=20,
     )
     contact_sheet(
-        "Core Link - design candidates",
-        "7x7 terminal  /  80% vanilla industrial shell, 20% arc-reactor sci-fi  /  grey + Bayugo mint & gold",
+        "Core Link - vanilla-derived candidates",
+        "7x7  /  Distributor platform + Nexus core module  /  Bayugo crystal vault",
         cl_items,
         os.path.join(DOCS, "core-link-designs.png"),
         scale=1,
         gap=20,
     )
+
+    if "--ascii" in sys.argv:
+        for letter in ("A", "B", "C", "D", "E"):
+            dump_ascii(f"bb-{letter}", built[("bb-collider", letter)])
+        for letter in ("A", "B", "C", "D", "E"):
+            dump_ascii(f"cl-{letter}", built[("core-link", letter)])
 
     print("palette clean" if ok else "PALETTE / COVERAGE PROBLEM")
 
