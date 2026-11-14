@@ -516,53 +516,89 @@ def cl_trinity():
 
 
 def cl_body_vents(img):
-    """Add recessed service panels to the Core Link's outer chassis apron."""
+    """Raised service housings and structural gussets for a deeper Core Link chassis."""
     d = ImageDraw.Draw(img)
 
-    def horizontal_hatch(x, y, w=40, h=16):
-        d.rectangle([x, y, x + w - 1, y + h - 1], fill=EDGE)
-        d.rectangle([x + 1, y + 1, x + w - 2, y + h - 2], fill=MID)
-        d.line([x + 2, y + 2, x + w - 3, y + 2], fill=LIGHT)
-        d.line([x + 2, y + 2, x + 2, y + h - 3], fill=LIGHT)
-        d.line([x + 2, y + h - 2, x + w - 3, y + h - 2], fill=EDGE)
-        d.line([x + w - 2, y + 2, x + w - 2, y + h - 2], fill=EDGE)
-        d.rectangle([x + 5, y + 5, x + w - 6, y + h - 5], fill=EDGE)
-        inner_w = w - 14
-        for i in range(5):
-            sx = x + 7 + i * (inner_w // 5)
-            d.rectangle([sx, y + 6, sx + 2, y + h - 6], fill=DARK)
-            d.line([sx, y + 6, sx, y + h - 6], fill=MID)
-        d.rectangle([x + w - 8, y + 5, x + w - 6, y + 8], fill=C_DEEP)
-        d.point([x + w - 8, y + 5], fill=C_MID)
-        for bx in (x + 3, x + w - 4):
-            d.point([bx, y + 3], fill=LIGHT)
-            d.point([bx, y + h - 4], fill=EDGE)
+    def raised_panel(box, radius=4, face=DARK):
+        x0, y0, x1, y1 = box
+        d.rounded_rectangle((x0 + 1, y0 + 4, x1 + 1, y1 + 4),
+                            radius=radius, fill=EDGE)
+        d.rounded_rectangle(box, radius=radius, fill=EDGE)
+        d.rounded_rectangle((x0 + 2, y0 + 2, x1 - 2, y1 - 2),
+                            radius=max(1, radius - 1), fill=face)
+        d.line((x0 + radius, y0 + 2, x1 - radius, y0 + 2), fill=LIGHT, width=2)
+        d.line((x0 + 2, y0 + radius, x0 + 2, y1 - radius), fill=LIGHT, width=2)
+        d.line((x0 + radius, y1 - 2, x1 - radius, y1 - 2), fill=EDGE, width=3)
+        d.line((x1 - 2, y0 + radius, x1 - 2, y1 - radius), fill=EDGE, width=3)
+        d.line((x0 + radius + 2, y0 + 4, x1 - radius - 2, y0 + 4),
+               fill=MID, width=1)
 
-    def vertical_hatch(x, y, w=16, h=40):
-        d.rectangle([x, y, x + w - 1, y + h - 1], fill=EDGE)
-        d.rectangle([x + 1, y + 1, x + w - 2, y + h - 2], fill=MID)
-        d.line([x + 2, y + 2, x + w - 3, y + 2], fill=LIGHT)
-        d.line([x + 2, y + 2, x + 2, y + h - 3], fill=LIGHT)
-        d.line([x + 2, y + h - 2, x + w - 3, y + h - 2], fill=EDGE)
-        d.line([x + w - 2, y + 2, x + w - 2, y + h - 2], fill=EDGE)
-        d.rectangle([x + 5, y + 5, x + w - 5, y + h - 6], fill=EDGE)
-        for i in range(5):
-            sy = y + 7 + i * ((h - 15) // 5)
-            d.rectangle([x + 6, sy, x + w - 7, sy + 2], fill=DARK)
-            d.line([x + 6, sy, x + w - 7, sy], fill=MID)
-        d.rectangle([x + 5, y + h - 9, x + 8, y + h - 7], fill=C_DEEP)
-        d.point([x + 5, y + h - 9], fill=C_MID)
-        for by in (y + 3, y + h - 4):
-            d.point([x + 3, by], fill=LIGHT)
-            d.point([x + w - 4, by], fill=EDGE)
+    def grille(box, vertical=False, count=10):
+        x0, y0, x1, y1 = box
+        d.rounded_rectangle(box, radius=1, fill=EDGE, outline=EDGE, width=2)
+        if vertical:
+            step = max(3, (y1 - y0) // count)
+            for yy in range(y0 + 3, y1 - 2, step):
+                d.line((x0 + 3, yy, x1 - 3, yy), fill=EDGE, width=2)
+                d.line((x0 + 3, yy - 1, x1 - 3, yy - 1), fill=MID, width=1)
+        else:
+            step = max(3, (x1 - x0) // count)
+            for xx in range(x0 + 3, x1 - 2, step):
+                d.line((xx, y0 + 3, xx, y1 - 3), fill=EDGE, width=2)
+                d.line((xx - 1, y0 + 3, xx - 1, y1 - 3), fill=MID, width=1)
+        d.line((x0 + 3, y0 + 3, x1 - 3, y0 + 3), fill=DARK, width=1)
 
-    # Paired upper/lower cooling covers and recessed side service wells.
-    for x in (62, 122):
-        horizontal_hatch(x, 34)
-        horizontal_hatch(x, 174)
-    for y in (62, 122):
-        vertical_hatch(34, y)
-        vertical_hatch(174, y)
+    # Raised cooling / service housings with visible lower sidewalls.
+    raised_panel((64, 31, 160, 55), face=MID)
+    raised_panel((64, 169, 160, 193), face=DARK)
+    raised_panel((31, 64, 55, 160), face=MID)
+    raised_panel((169, 64, 193, 160), face=DARK)
+    grille((77, 38, 147, 49), vertical=False)
+    grille((77, 175, 147, 186), vertical=False)
+    grille((38, 77, 49, 147), vertical=True)
+    grille((175, 77, 186, 147), vertical=True)
+
+    # Crystal-powered status lamps set into the ends of each housing.
+    for cx, cy in ((69, 43), (155, 43), (69, 181), (155, 181),
+                   (43, 69), (43, 155), (181, 69), (181, 155)):
+        d.rectangle((cx - 3, cy - 3, cx + 3, cy + 3), fill=EDGE)
+        d.rectangle((cx - 1, cy - 1, cx + 1, cy + 1), fill=C_DEEP)
+        d.point((cx - 1, cy - 1), fill=C_MID)
+
+    # Four thick diagonal load-bearing gussets; cast shadows make them read
+    # as raised members rather than flat surface markings.
+    gussets = [
+        [(34, 45), (45, 34), (83, 72), (72, 83)],
+        [(178, 34), (189, 45), (151, 83), (140, 72)],
+        [(34, 179), (45, 190), (83, 152), (72, 141)],
+        [(178, 190), (189, 179), (151, 141), (140, 152)],
+    ]
+    for pts in gussets:
+        d.polygon([(x + 1, y + 5) for x, y in pts], fill=EDGE)
+        d.polygon(pts, fill=EDGE)
+        inner = [(round(0.78 * x + 0.22 * 112),
+                  round(0.78 * y + 0.22 * 112)) for x, y in pts]
+        d.polygon(inner, fill=MID)
+        d.line([pts[0], pts[1]], fill=LIGHT, width=2)
+        d.line([pts[0], pts[3]], fill=DARK, width=1)
+        ax, ay = pts[0]
+        d.rectangle((ax - 2, ay - 2, ax + 2, ay + 2), fill=EDGE)
+        d.point((ax - 1, ay - 1), fill=LIGHT)
+
+    # Thick lower / right chassis skirt to establish the building's body depth.
+    d.polygon([(28, 188), (196, 188), (188, 202), (36, 202)], fill=EDGE)
+    d.line((37, 197, 187, 197), fill=DARK, width=3)
+    d.line((43, 191, 181, 191), fill=MID, width=2)
+    d.polygon([(188, 28), (202, 36), (202, 188), (188, 196)], fill=EDGE)
+    d.line((197, 42, 197, 183), fill=DARK, width=3)
+    d.line((191, 45, 191, 179), fill=MID, width=2)
+
+    # Gold fasteners anchor the new armor to the underlying platform.
+    for cx, cy in ((59, 59), (165, 59), (59, 165), (165, 165),
+                   (112, 28), (112, 196), (28, 112), (196, 112)):
+        d.rectangle((cx - 3, cy - 3, cx + 3, cy + 3), fill=EDGE)
+        d.rectangle((cx - 1, cy - 1, cx + 1, cy + 1), fill=A_MID)
+        d.point((cx - 1, cy - 1), fill=LIGHT)
 
 
 def cl_prism():
