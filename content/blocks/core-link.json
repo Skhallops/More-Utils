@@ -15,6 +15,123 @@
   "alwaysAllowDeposit": true,
   "solid": true,
   "category": "distribution",
+  "placeEffect": {
+    "type": "MultiEffect",
+    "effects": [
+      "placeBlock",
+      {
+        "type": "WaveEffect",
+        "colorFrom": "cffae8",
+        "colorTo": "3faaa4",
+        "sizeFrom": 6,
+        "sizeTo": 40,
+        "strokeFrom": 4,
+        "strokeTo": 0,
+        "lifetime": 24,
+        "lightColor": "85e0c6",
+        "lightOpacity": 0.45
+      },
+      {
+        "type": "ParticleEffect",
+        "line": true,
+        "particles": 10,
+        "length": 24,
+        "cone": 360,
+        "colorFrom": "cffae8",
+        "colorTo": "3faaa4",
+        "strokeFrom": 2,
+        "strokeTo": 0.2,
+        "lenFrom": 5,
+        "lenTo": 1,
+        "lifetime": 18
+      }
+    ]
+  },
+  "breakEffect": {
+    "type": "ParticleEffect",
+    "line": true,
+    "particles": 6,
+    "length": 14,
+    "cone": 360,
+    "colorFrom": "cffae8",
+    "colorTo": "3faaa4",
+    "strokeFrom": 2,
+    "strokeTo": 0.2,
+    "lenFrom": 4,
+    "lenTo": 1,
+    "lifetime": 16
+  },
+  "destroyEffect": {
+    "type": "MultiEffect",
+    "effects": [
+      {
+        "type": "WaveEffect",
+        "colorFrom": "cffae8",
+        "colorTo": "3faaa4",
+        "sizeFrom": 8,
+        "sizeTo": 88,
+        "strokeFrom": 7,
+        "strokeTo": 0,
+        "lifetime": 40,
+        "lightColor": "85e0c6",
+        "lightOpacity": 0.6
+      },
+      {
+        "type": "WaveEffect",
+        "colorFrom": "f7e097",
+        "colorTo": "97773a",
+        "sizeFrom": 4,
+        "sizeTo": 56,
+        "strokeFrom": 4,
+        "strokeTo": 0,
+        "lifetime": 32,
+        "startDelay": 4,
+        "lightColor": "f7e097",
+        "lightOpacity": 0.5
+      },
+      {
+        "type": "ParticleEffect",
+        "line": true,
+        "particles": 26,
+        "length": 62,
+        "cone": 360,
+        "colorFrom": "cffae8",
+        "colorTo": "3faaa4",
+        "strokeFrom": 3,
+        "strokeTo": 0.4,
+        "lenFrom": 12,
+        "lenTo": 2,
+        "lifetime": 32,
+        "lightColor": "85e0c6",
+        "lightOpacity": 0.5
+      },
+      {
+        "type": "ParticleEffect",
+        "particles": 10,
+        "length": 18,
+        "cone": 90,
+        "sizeFrom": 6,
+        "sizeTo": 16,
+        "colorFrom": "4a6172aa",
+        "colorTo": "22303a00",
+        "lifetime": 40
+      },
+      {
+        "type": "ParticleEffect",
+        "line": true,
+        "particles": 8,
+        "length": 30,
+        "cone": 360,
+        "colorFrom": "f7e097",
+        "colorTo": "97773a",
+        "strokeFrom": 2,
+        "strokeTo": 0.2,
+        "lenFrom": 7,
+        "lenTo": 1,
+        "lifetime": 26
+      }
+    ]
+  },
   "requirements": [
     "copper/1800",
     "lead/1800",

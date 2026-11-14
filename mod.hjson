@@ -2,5 +2,5 @@ name: mass-driver-tiers
 displayName: More Utils
 author: Skhall
 description: Adds upgraded mass drivers, Bayugo Crystal production, and the late-game Core Link.
-version: "1.3.04.0"
+version: "1.4.00.0"
 minGameVersion: "160"

@@ -44,6 +44,57 @@ function detachCoreLink(build){
     build._coreLinkBoundCore = null;
 }
 
+// Arc-reactor ambience for the Core Link. These are built once after content
+// loads so the terminal visibly "breathes" and sparks when stock moves.
+var coreLinkPulseFx = null;
+var coreLinkSparkFx = null;
+
+function makeCoreLinkFx(){
+    if(coreLinkPulseFx != null) return;
+
+    coreLinkPulseFx = new WaveEffect();
+    coreLinkPulseFx.colorFrom = Color.valueOf("cffae8");
+    coreLinkPulseFx.colorTo = Color.valueOf("3faaa4");
+    coreLinkPulseFx.sizeFrom = 5;
+    coreLinkPulseFx.sizeTo = 34;
+    coreLinkPulseFx.strokeFrom = 2.5;
+    coreLinkPulseFx.strokeTo = 0;
+    coreLinkPulseFx.lifetime = 34;
+    coreLinkPulseFx.lightColor = Color.valueOf("85e0c6");
+    coreLinkPulseFx.lightOpacity = 0.3;
+    coreLinkPulseFx.init();
+
+    coreLinkSparkFx = new ParticleEffect();
+    coreLinkSparkFx.line = true;
+    coreLinkSparkFx.particles = 4;
+    coreLinkSparkFx.length = 10;
+    coreLinkSparkFx.cone = 360;
+    coreLinkSparkFx.colorFrom = Color.valueOf("cffae8");
+    coreLinkSparkFx.colorTo = Color.valueOf("3faaa4");
+    coreLinkSparkFx.strokeFrom = 2;
+    coreLinkSparkFx.strokeTo = 0.2;
+    coreLinkSparkFx.lenFrom = 4;
+    coreLinkSparkFx.lenTo = 1;
+    coreLinkSparkFx.lifetime = 16;
+    coreLinkSparkFx.init();
+}
+
+function tickCoreLinkFx(build){
+    build._coreLinkPulseTicks = (build._coreLinkPulseTicks || 0) + 1;
+    build._coreLinkSparkWait = Math.max(0, (build._coreLinkSparkWait || 0) - 1);
+
+    if(build._coreLinkDirty && build._coreLinkSparkWait <= 0){
+        build._coreLinkDirty = false;
+        build._coreLinkSparkWait = 12;
+        if(!Vars.headless) coreLinkSparkFx.at(build.x, build.y);
+    }
+
+    if(build._coreLinkPulseTicks >= 210){
+        build._coreLinkPulseTicks = 0;
+        if(!Vars.headless) coreLinkPulseFx.at(build.x, build.y);
+    }
+}
+
 function installCoreLink(){
     var coreLink = Vars.content.block("mass-driver-tiers-core-link");
     if(coreLink == null){
@@ -61,6 +112,8 @@ function installCoreLink(){
     coreLink.coreMerge = false;
     coreLink.alwaysAllowDeposit = true;
 
+    makeCoreLinkFx();
+
     coreLink.buildType = prov(function(){
         return new JavaAdapter(Building, {
             // Do NOT bind items in created() or onProximityUpdate(). During
@@ -71,6 +124,7 @@ function installCoreLink(){
 
             updateTile(){
                 syncCoreLink(this);
+                tickCoreLinkFx(this);
             },
 
             acceptItem(source, item){
@@ -84,6 +138,7 @@ function installCoreLink(){
                     // Keep CoreBuild's own campaign/statistics behavior.
                     core.noEffect = true;
                     core.handleItem(source, item);
+                    this._coreLinkDirty = true;
                 }
             },
 
@@ -101,12 +156,16 @@ function installCoreLink(){
                 var core = syncCoreLink(this);
                 if(core != null){
                     core.handleStack(item, amount, source);
+                    this._coreLinkDirty = true;
                 }
             },
 
             removeStack(item, amount){
                 var core = syncCoreLink(this);
-                return core == null ? 0 : core.removeStack(item, amount);
+                if(core == null) return 0;
+                var taken = core.removeStack(item, amount);
+                if(taken > 0) this._coreLinkDirty = true;
+                return taken;
             },
 
             itemTaken(item){
@@ -115,6 +174,7 @@ function installCoreLink(){
                     // Unloader removes directly from this.items, then calls
                     // itemTaken(). Forward campaign accounting to CoreBuild.
                     core.itemTaken(item);
+                    this._coreLinkDirty = true;
                 }
             },
 
