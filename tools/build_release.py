@@ -18,7 +18,7 @@ import sys
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ZIP_NAME = "mass-driver-tiers.zip"
+ZIP_NAME = "More-Utils.zip"
 
 ROOT_FILES = ("mod.hjson", "icon.png", "LICENSE")
 INCLUDE_DIRS = ("content", "sprites", "scripts")

@@ -49,7 +49,7 @@ Core Link is intentionally expensive so each placement is a strategic logistics 
 
 ## Installation
 
-Download the mod from the [GitHub repository](https://github.com/Skhallops/More-Utils) and import its ZIP through **Mods → Import Mod** in Mindustry. Alternatively, place the extracted mod folder in your Mindustry `mods` directory.
+Download the mod from the [More-Utils repository](https://github.com/Skhallops/More-Utils) and import `More-Utils.zip` through **Mods → Import Mod** in Mindustry. Alternatively, place the extracted mod folder in your Mindustry `mods` directory.
 
 ## What's next
 
