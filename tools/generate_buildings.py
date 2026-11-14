@@ -31,6 +31,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VANILLA = os.path.join(ROOT, "tools", "vanilla")
 DOCS = os.path.join(ROOT, "docs", "designs")
 SPRITES = os.path.join(ROOT, "sprites")
+CORE_LINK_ART = os.path.join(ROOT, "tools", "artwork", "core-link-prism.png")
 
 # ---------------------------------------------------------------------------
 # palette - every entry copied from a vanilla sprite or from the mod effects
@@ -55,8 +56,15 @@ A_MID = (211, 180, 94)     # d3b45e
 A_HOT = (247, 224, 151)    # f7e097
 A_WHITE = (253, 246, 223)
 
+CORE_LINK_PALETTE = (
+    (43, 46, 60), (60, 64, 80), (85, 90, 108), (111, 116, 135),
+    (143, 149, 166), (179, 187, 202), (207, 215, 225), (238, 237, 221),
+    (27, 92, 101), (48, 154, 151), (95, 205, 185), (174, 242, 220),
+    (134, 99, 46), (194, 145, 61), (235, 190, 89),
+)
+
 PALETTE = (EDGE, DARK, MID, LIGHT, C_DEEP, C_DARK, C_MID, C_HI,
-           A_DEEP, A_MID, A_HOT, A_WHITE)
+           A_DEEP, A_MID, A_HOT, A_WHITE) + CORE_LINK_PALETTE
 
 # core-nucleus.png uses these three flat tones
 NUCLEUS = [(110, 112, 128), (152, 154, 164), (176, 186, 192)]
@@ -602,33 +610,10 @@ def cl_body_vents(img):
 
 
 def cl_prism():
-    """B - Prism Heart: faceted gem in a reinforced vault with detailed service apron."""
-    img = cl_base()
-    cl_deck(img)
-    cl_body_vents(img)
-    d = ImageDraw.Draw(img)
-    for rr, col in ((36, EDGE), (33, DARK), (30, EDGE), (27, DARK)):
-        d.ellipse([112 - rr, 112 - rr, 112 + rr, 112 + rr], fill=col)
-    d.arc([112 - 33, 112 - 33, 112 + 33, 112 + 33], 180, 270, fill=MID, width=2)
-    # teal outer gem
-    pts = [(112, 76), (130, 108), (122, 138), (112, 146), (102, 138), (94, 108)]
-    d.polygon(pts, fill=C_MID)
-    d.polygon([(112, 76), (94, 108), (102, 138), (112, 146)], fill=C_HI)
-    d.polygon([(112, 76), (112, 146), (122, 138), (130, 108)], fill=C_DARK)
-    d.line(pts + [pts[0]], fill=C_DEEP)
-    d.line([(112, 76), (112, 146)], fill=C_DEEP)
-    d.line([(94, 108), (130, 108)], fill=C_DEEP)
-    # gold inner facet
-    d.polygon([(112, 92), (124, 110), (112, 132), (100, 110)], fill=A_MID)
-    d.polygon([(112, 92), (100, 110), (112, 132)], fill=A_HOT)
-    d.line([(112, 92), (124, 110), (112, 132), (100, 110), (112, 92)], fill=A_DEEP)
-    d.line([(112, 92), (112, 132)], fill=A_DEEP)
-    # socket studs
-    for ang in range(0, 360, 45):
-        a = math.radians(ang)
-        sx = int(112 + 40 * math.cos(a))
-        sy = int(112 + 40 * math.sin(a))
-        bolt(img, sx, sy, 2, face=MID)
+    """B - Prism Heart: top-down, fully encased Bayugo transfer vault."""
+    img = Image.open(CORE_LINK_ART).convert("RGBA")
+    if img.size != (CL, CL):
+        raise ValueError(f"Core Link source art must be {CL}x{CL}, got {img.size}")
     return img
 
 
@@ -818,6 +803,12 @@ ASCII_MAP = {
     EDGE: " ", DARK: ".", MID: ":", LIGHT: "#",
     C_DEEP: "c", C_DARK: "C", C_MID: "m", C_HI: "H",
     A_DEEP: "a", A_MID: "A", A_HOT: "g", A_WHITE: "W",
+    (43, 46, 60): "e", (60, 64, 80): "s", (85, 90, 108): "d",
+    (111, 116, 135): "b", (143, 149, 166): "m", (179, 187, 202): "l",
+    (207, 215, 225): "L", (238, 237, 221): "w",
+    (27, 92, 101): "t", (48, 154, 151): "T", (95, 205, 185): "g",
+    (174, 242, 220): "G", (134, 99, 46): "a", (194, 145, 61): "A",
+    (235, 190, 89): "y",
 }
 
 

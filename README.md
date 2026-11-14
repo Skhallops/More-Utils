@@ -20,9 +20,9 @@
 
 ![Core Link](sprites/core-link.png)
 
-Both buildings are derived from real vanilla Mindustry sprites, so their silhouette, pixel density and shading match the base game exactly. The B.B Collider uses the **Core: Nucleus** structure remapped into the **Distributor's** grey palette, with a heavy accelerator housing built into the centre and amber heat accents — and deliberately **no crystal detail**, because the collider only *makes* crystals. The Core Link places an unmodified **Nexus core module** on a Distributor-styled 7×7 platform, with Bayugo crystal sight-glasses in the apron and a faceted Bayugo gem in the central vault.
+Both buildings follow vanilla Mindustry's chunky industrial shading and readable structure. The B.B Collider is derived from the **Core: Nucleus** structure remapped into the **Distributor's** grey palette, with a heavy particle-accelerator housing and amber heat accents — and deliberately **no crystal detail**, because the collider only *makes* crystals. The Core Link is a fully encased, top-down transfer vault: layered armor, raised service housings and recessed cooling grilles surround a flat, faceted Bayugo Crystal held at the centre. The four external crystal ornaments have been removed so the central crystal is the sole focal point.
 
-Every grey is sampled straight from vanilla: `#4a4b53`, `#6e7080`, `#989aa4` and `#b0bac0` from `distributor.png` and `core-nucleus.png`. Crystal and heat accents reuse the palette of the block effects and of the Bayugo Crystal item icon (teal body, gold facet).
+The B.B Collider retains the vanilla-derived greys `#4a4b53`, `#6e7080`, `#989aa4` and `#b0bac0`. The Core Link extends that industrial palette with additional cool-steel shadow and highlight steps while keeping the Bayugo teal and gold facets. Its selected source sprite is stored at `tools/artwork/core-link-prism.png`, so the generator can reproduce the installed 224×224 asset.
 
 Run `py -3 tools/generate_buildings.py` to regenerate every candidate and its contact sheet into `docs/designs/`.
 
@@ -63,4 +63,4 @@ More Utils will continue to expand with additional useful blocks and quality-of-
 
 ## Credits
 
-Mindustry is created by [Anuken](https://github.com/Anuken/Mindustry) and its contributors. The mass-driver, B.B Collider and Core Link sprites are derived from Mindustry's vanilla assets and distributed under the [GPL-3.0 license](LICENSE). The Bayugo Crystal item icon is an original pixel-art asset created for this mod.
+Mindustry is created by [Anuken](https://github.com/Anuken/Mindustry) and its contributors. The mass-driver and B.B Collider sprites are derived from Mindustry's vanilla assets; the Core Link is an original vanilla-style pixel-art composition. The sprites are distributed under the [GPL-3.0 license](LICENSE). The Bayugo Crystal item icon is an original pixel-art asset created for this mod.
