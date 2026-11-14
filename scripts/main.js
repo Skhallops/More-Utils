@@ -96,7 +96,7 @@ function tickCoreLinkFx(build){
 }
 
 function installCoreLink(){
-    var coreLink = Vars.content.block("mass-driver-tiers-core-link");
+    var coreLink = Vars.content.block("more-utils-core-link");
     if(coreLink == null){
         throw new Error("Core Link block was not found after mod JSON content loading.");
     }

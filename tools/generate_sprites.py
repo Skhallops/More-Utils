@@ -1,5 +1,5 @@
 """
-Sprite generator for the Mass Driver Tiers mod.
+Sprite generator for the More-Utils mod.
 
 The two new drivers are built directly from Mindustry's vanilla mass driver
 sprite (tools/vanilla/mass-driver.png, GPLv3), so their silhouette, pixel

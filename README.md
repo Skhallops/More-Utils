@@ -51,6 +51,10 @@ Core Link is intentionally expensive so each placement is a strategic logistics 
 
 Download the mod from the [More-Utils repository](https://github.com/Skhallops/More-Utils) and import `More-Utils.zip` through **Mods → Import Mod** in Mindustry. Alternatively, place the extracted mod folder in your Mindustry `mods` directory.
 
+### Upgrading
+
+The internal mod id is now `more-utils` (previously `mass-driver-tiers`). Worlds and schematics built with 1.3.x or earlier cannot resolve this mod's blocks after the rename, so finish those saves on the older build or start a fresh world.
+
 ## What's next
 
 More Utils will continue to expand with additional useful blocks and quality-of-life improvements in future updates.
