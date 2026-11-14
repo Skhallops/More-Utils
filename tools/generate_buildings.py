@@ -515,10 +515,61 @@ def cl_trinity():
     return img
 
 
+def cl_body_vents(img):
+    """Add recessed service panels to the Core Link's outer chassis apron."""
+    d = ImageDraw.Draw(img)
+
+    def horizontal_hatch(x, y, w=40, h=16):
+        d.rectangle([x, y, x + w - 1, y + h - 1], fill=EDGE)
+        d.rectangle([x + 1, y + 1, x + w - 2, y + h - 2], fill=MID)
+        d.line([x + 2, y + 2, x + w - 3, y + 2], fill=LIGHT)
+        d.line([x + 2, y + 2, x + 2, y + h - 3], fill=LIGHT)
+        d.line([x + 2, y + h - 2, x + w - 3, y + h - 2], fill=EDGE)
+        d.line([x + w - 2, y + 2, x + w - 2, y + h - 2], fill=EDGE)
+        d.rectangle([x + 5, y + 5, x + w - 6, y + h - 5], fill=EDGE)
+        inner_w = w - 14
+        for i in range(5):
+            sx = x + 7 + i * (inner_w // 5)
+            d.rectangle([sx, y + 6, sx + 2, y + h - 6], fill=DARK)
+            d.line([sx, y + 6, sx, y + h - 6], fill=MID)
+        d.rectangle([x + w - 8, y + 5, x + w - 6, y + 8], fill=C_DEEP)
+        d.point([x + w - 8, y + 5], fill=C_MID)
+        for bx in (x + 3, x + w - 4):
+            d.point([bx, y + 3], fill=LIGHT)
+            d.point([bx, y + h - 4], fill=EDGE)
+
+    def vertical_hatch(x, y, w=16, h=40):
+        d.rectangle([x, y, x + w - 1, y + h - 1], fill=EDGE)
+        d.rectangle([x + 1, y + 1, x + w - 2, y + h - 2], fill=MID)
+        d.line([x + 2, y + 2, x + w - 3, y + 2], fill=LIGHT)
+        d.line([x + 2, y + 2, x + 2, y + h - 3], fill=LIGHT)
+        d.line([x + 2, y + h - 2, x + w - 3, y + h - 2], fill=EDGE)
+        d.line([x + w - 2, y + 2, x + w - 2, y + h - 2], fill=EDGE)
+        d.rectangle([x + 5, y + 5, x + w - 5, y + h - 6], fill=EDGE)
+        for i in range(5):
+            sy = y + 7 + i * ((h - 15) // 5)
+            d.rectangle([x + 6, sy, x + w - 7, sy + 2], fill=DARK)
+            d.line([x + 6, sy, x + w - 7, sy], fill=MID)
+        d.rectangle([x + 5, y + h - 9, x + 8, y + h - 7], fill=C_DEEP)
+        d.point([x + 5, y + h - 9], fill=C_MID)
+        for by in (y + 3, y + h - 4):
+            d.point([x + 3, by], fill=LIGHT)
+            d.point([x + w - 4, by], fill=EDGE)
+
+    # Paired upper/lower cooling covers and recessed side service wells.
+    for x in (62, 122):
+        horizontal_hatch(x, 34)
+        horizontal_hatch(x, 174)
+    for y in (62, 122):
+        vertical_hatch(34, y)
+        vertical_hatch(174, y)
+
+
 def cl_prism():
-    """B - Prism Heart: one large faceted gem in a round socket."""
+    """B - Prism Heart: faceted gem in a reinforced vault with detailed service apron."""
     img = cl_base()
     cl_deck(img)
+    cl_body_vents(img)
     d = ImageDraw.Draw(img)
     for rr, col in ((36, EDGE), (33, DARK), (30, EDGE), (27, DARK)):
         d.ellipse([112 - rr, 112 - rr, 112 + rr, 112 + rr], fill=col)
