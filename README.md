@@ -1,145 +1,66 @@
-# Mass Driver Tiers
+# More Utils
 
-A small Mindustry mod that adds two late-game upgrades to the vanilla mass driver:
-a **Thorium Mass Driver** and a **Surge Mass Driver**.
+**More space for your factory. More reach for your logistics.** More Utils adds upgraded mass drivers and a late-game storage network built around the Bayugo Crystal.
 
-![Preview](docs/preview.png)
+![More Utils blocks](docs/preview.png)
 
-## Blocks
+## Added content
 
-| Block | Size | Health | Capacity | Range | Reload | Power | Research |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Mass Driver (vanilla) | 3×3 | 380 | 120 | 440 (55 tiles) | 200 | 1.75 | — |
-| **Thorium Mass Driver** | 3×3 | 760 | 180 | 640 (80 tiles) | 150 | 3 | Mass Driver |
-| **Surge Mass Driver** | 5×5 | 1850 | 520 | 1200 (150 tiles) | 110 | 10 | Thorium Mass Driver |
+- **Thorium Mass Driver (3×3)** — a reinforced, long-range driver with a 180-item capacity and a distinctive pink firing effect.
+- **Surge Mass Driver (5×5)** — a high-capacity driver that carries 520 items over extreme distances, with cyan-and-yellow firing effects.
+- **Bayugo Crystal** — a synthetic late-game material produced by combining refined solids with slag and cryofluid.
+- **B.B Collider (5×5)** — needs 12 silicon, 8 thorium, 8 blast compound, 6/s slag, 6/s cryofluid and 24 power, producing one Bayugo Crystal every 8 seconds.
+- **Core Link (7×7)** — a remote access point for your team's core inventory. Conveyors can feed items into it, and adjacent unloaders can withdraw from the same core stockpile. It adds **no extra storage capacity** and requires an active core.
 
-Both blocks are in the **Distribution** category and behave exactly like the vanilla
-mass driver: they link to a matching driver, buffer items, and launch payloads when
-powered. Range is measured in world units (8 units per tile).
+## Sprites
 
-### Firing effects
+![Bayugo Crystal](sprites/bayugo-crystal.png)
 
-The launch and receive effects are configured per block in JSON, so each tier has
-its own signature:
+![B.B Collider](sprites/bb-collider.png)
 
-- **Thorium** — pink shockwave ring, rose spark streaks, a soft pink muzzle flash,
-  and a lingering pink smoke puff. Launched shells leave a pink trail and glowing
-  pink light.
-- **Surge** — a wide cyan shockwave plus a delayed surge-yellow ring, cyan and
-  yellow spark streaks, and a cyan smoke puff. Shells leave a yellow trail with a
-  cyan glow.
+![Core Link](sprites/core-link.png)
 
-Both tiers also use a stronger screen shake than vanilla (4 and 10 vs. 3) so the
-larger drivers feel heavier when they fire.
+Both buildings follow vanilla Mindustry's chunky industrial shading and readable structure. The B.B Collider is derived from the **Core: Nucleus** structure remapped into the **Distributor's** grey palette, with a heavy particle-accelerator housing and amber heat accents — and deliberately **no crystal detail**, because the collider only *makes* crystals. The Core Link is a fully encased, top-down transfer vault: layered armor, raised service housings and recessed cooling grilles surround a flat, faceted Bayugo Crystal held at the centre. The four external crystal ornaments have been removed so the central crystal is the sole focal point.
 
-### Costs
+The B.B Collider retains the vanilla-derived greys `#4a4b53`, `#6e7080`, `#989aa4` and `#b0bac0`. The Core Link extends that industrial palette with additional cool-steel shadow and highlight steps while keeping the Bayugo teal and gold facets. Its selected source sprite is stored at `tools/artwork/core-link-prism.png`, so the generator can reproduce the installed 224×224 asset.
 
-**Thorium Mass Driver**
+Run `py -3 tools/generate_buildings.py` to regenerate every candidate and its contact sheet into `docs/designs/`.
 
-- 150 thorium
-- 175 titanium
-- 150 silicon
-- 100 lead
-- 300 copper
+### Selected designs
 
-**Surge Mass Driver**
+| Building | Design |
+|---|---|
+| B.B Collider | **A — Beam Press** |
+| Core Link | **B — Prism Heart** |
 
-- 200 surge alloy
-- 250 thorium
-- 250 silicon
-- 300 titanium
-- 60 phase fabric
-- 300 graphite
+All five candidates for each building remain in `docs/designs/` for reference. `CHOSEN` in `tools/generate_buildings.py` controls which design is installed into `sprites/`, so the shipped art is reproducible in one command.
+
+## Effects
+
+- **B.B Collider** — on every craft: a mint shockwave, a delayed gold shockwave, radial mint and gold sparks, and a puff of grey vent smoke. While running it emits a slow trickle of mint motes, and its warmup ramps down gently instead of snapping off.
+- **Core Link** — a mint/gold placement flash and spark ring, a small spark burst on deconstruction, and a large mint-and-gold shockwave plus sparks and smoke on destruction. At runtime it also pulses its arc reactor every few seconds and throws a short spark whenever stock moves through the terminal.
+
+## Core Link balancing
+
+Core Link is intentionally expensive so each placement is a strategic logistics decision rather than a block to spam. Each one requires 40 Bayugo Crystals, surge alloy, phase fabric, thorium, and other late-game materials. Core Link follows the core's item capacity and availability; it does not create a separate inventory. Its runtime adapter is installed after JSON content loading, using the core's item module directly. Withdrawals are handled by vanilla unloaders.
+
+## Requirements
+
+- **Mindustry v8**, build **160 or newer**.
+- Compatible with desktop and mobile versions that support Mindustry JavaScript mod scripts.
 
 ## Installation
 
-1. Download or build the mod folder/zip.
-2. In Mindustry, open **Mods → Import Mod** and select the `.zip`, or drop the
-   folder into your mods directory:
-   - Windows: `%APPDATA%\Mindustry\mods\`
-   - Linux: `~/.local/share/Mindustry/mods/`
-   - macOS: `~/Library/Application Support/Mindustry/mods/`
-3. Restart the game or reload mods.
+Download the mod from the [More-Utils repository](https://github.com/Skhallops/More-Utils) and import `More-Utils.zip` through **Mods → Import Mod** in Mindustry. Alternatively, place the extracted mod folder in your Mindustry `mods` directory.
 
-Requires **Mindustry v8 (build 160 or newer)**. The mod is data-only (JSON), so it
-works on desktop and mobile, in singleplayer and on servers (the server needs the
-mod installed too).
+### Upgrading
 
-## Versioning
+The internal mod id is now `more-utils` (previously `mass-driver-tiers`). Worlds and schematics built with 1.3.x or earlier cannot resolve this mod's blocks after the rename, so finish those saves on the older build or start a fresh world.
 
-Releases use the four-part scheme `1.x.xx.x`:
+## What's next
 
-- `1` — project generation (fixed)
-- `x` — major content update (new blocks/features)
-- `xx` — minor update, zero-padded (`00`–`99`)
-- `x` — hotfix/patch
+More Utils will continue to expand with additional useful blocks and quality-of-life improvements in future updates.
 
-The in-game version in `mod.hjson` and the GitHub release tag must always match:
-mod `1.1.00.0` ↔ GitHub tag/release `v1.1.00.0`. For example: a new feature bumps
-the second number (`1.2.00.0`), a balance pass bumps the third (`1.2.01.0`), and a
-bugfix bumps the last (`1.2.01.1`).
+## Credits
 
-## How the sprites are made
-
-The turret sprites are derived from Mindustry's own `mass-driver.png` (kept in
-`tools/vanilla/`), so the silhouette, pixel density and shading match the vanilla
-driver exactly. The generator snaps every pixel to the vanilla 5-color palette and
-remaps it onto a tier palette, then adds the tier detailing:
-
-- **Thorium** — mauve steel with rose plating and thorium-pink accents; a muzzle
-  accelerator collar, dashed charge rails, a pink emitter core and a glowing rear
-  prong tip.
-- **Surge** — blue steel with cyan plating and surge-yellow accents; three
-  accelerator collars, a cyan energy spine, a cyan/yellow emitter core and cyan
-  edge ticks on the base. The 5×5 art is upscaled from the vanilla bitmap and
-  re-quantized so it stays crisp pixel art.
-
-Future blocks should follow the same pipeline: derive from the matching vanilla
-asset, remap the palette, then add hand-placed tier detailing. This keeps every
-addition visually consistent with the base game.
-
-All sprites and the mod icon are generated with [Pillow](https://python-pillow.org/),
-so they can be re-rendered after tweaking the palettes or geometry:
-
-```sh
-py -3 tools/generate_sprites.py
-```
-
-This writes:
-
-- `sprites/thorium-mass-driver.png` / `-base.png` (96×96, 3×3)
-- `sprites/surge-mass-driver.png` / `-base.png` (160×160, 5×5)
-- `icon.png` (128×128)
-- `docs/preview.png` (README preview sheet)
-
-Mindustry auto-prefixes mod sprite names with the mod's internal name
-(`mass-driver-tiers`), so the file names map directly to the block names.
-Each mass driver needs two regions: the rotating turret (`<name>.png`) and the
-static base (`<name>-base.png`).
-
-> **Asset credit / license:** the vanilla mass driver sprite is part of
-> [Mindustry](https://github.com/Anuken/Mindustry) by Anuken and contributors, which
-> is licensed under the **GPLv3**. The tier sprites here are derivative works of
-> that asset and are distributed under the same license.
-
-## Packaging a release
-
-Only these are needed at runtime:
-
-```text
-mod.hjson
-icon.png
-content/
-sprites/
-```
-
-`tools/` (sprite generator) and `docs/` (preview) can be left out of the release
-archive.
-
-## Notes
-
-- Balance is tuned as an endgame tier above the vanilla driver; edit the JSON files
-  in `content/blocks/` to change stats or costs.
-- `"name"` and `"description"` are set inline in each block JSON, so display names
-  and descriptions are added to the bundle at load time without a separate
-  `bundles/` file.
+Mindustry is created by [Anuken](https://github.com/Anuken/Mindustry) and its contributors. The mass-driver and B.B Collider sprites are derived from Mindustry's vanilla assets; the Core Link is an original vanilla-style pixel-art composition. The sprites are distributed under the [GPL-3.0 license](LICENSE). The Bayugo Crystal item icon is an original pixel-art asset created for this mod.

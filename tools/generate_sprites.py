@@ -1,5 +1,5 @@
 """
-Sprite generator for the Mass Driver Tiers mod.
+Sprite generator for the More-Utils mod.
 
 The two new drivers are built directly from Mindustry's vanilla mass driver
 sprite (tools/vanilla/mass-driver.png, GPLv3), so their silhouette, pixel
@@ -275,11 +275,8 @@ def make_icon(size=128):
     return plate
 
 
-def make_preview(jobs, scale=2, pad=26, gap=26):
-    tiles = []
-    for name, size, _pal, turret, base in jobs:
-        tile = Image.alpha_composite(base(size), turret(size))
-        tiles.append(tile.resize((tile.width * scale, tile.height * scale), Image.NEAREST))
+def make_preview(tiles, scale=2, pad=26, gap=26):
+    tiles = [t.resize((t.width * scale, t.height * scale), Image.NEAREST) for t in tiles]
 
     w = pad * 2 + sum(t.width for t in tiles) + gap * (len(tiles) - 1)
     h = pad * 2 + max(t.height for t in tiles)
@@ -318,7 +315,21 @@ def main():
     make_icon().save(os.path.join(ROOT, "icon.png"))
     print("wrote icon.png")
 
-    make_preview(jobs).save(os.path.join(DOCS, "preview.png"))
+    # Banner preview: every block at the same 32px-per-tile scale so the
+    # relative footprint of each building reads correctly.
+    tiles = [
+        Image.alpha_composite(base(size), turret(size))
+        for _name, size, _pal, turret, base in jobs
+    ]
+    for extra in ("bb-collider", "core-link"):
+        path = os.path.join(SPRITES, extra + ".png")
+        if os.path.exists(path):
+            with Image.open(path) as handle:
+                tiles.append(handle.convert("RGBA"))
+        else:
+            print(f"skip preview tile {extra} (missing sprite)")
+
+    make_preview(tiles).save(os.path.join(DOCS, "preview.png"))
     print("wrote docs/preview.png")
 
 

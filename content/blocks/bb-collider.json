@@ -1,0 +1,129 @@
+{
+  "type": "GenericCrafter",
+  "name": "B.B Collider",
+  "description": "An industrial collider that fuses slag and cryofluid with refined solids to synthesize Bayugo Crystals.",
+  "size": 5,
+  "health": 6200,
+  "armor": 4,
+  "itemCapacity": 60,
+  "liquidCapacity": 120,
+  "craftTime": 480,
+  "outputItem": {
+    "item": "bayugo-crystal",
+    "amount": 1
+  },
+  "category": "crafting",
+  "hasPower": true,
+  "consumes": {
+    "items": [
+      "silicon/12",
+      "thorium/8",
+      "blast-compound/8"
+    ],
+    "liquids": [
+      { "liquid": "slag", "amount": 0.10 },
+      { "liquid": "cryofluid", "amount": 0.10 }
+    ],
+    "power": 24
+  },
+  "craftEffect": {
+    "type": "MultiEffect",
+    "effects": [
+      {
+        "type": "WaveEffect",
+        "colorFrom": "cffae8",
+        "colorTo": "3faaa4",
+        "sizeFrom": 4,
+        "sizeTo": 44,
+        "strokeFrom": 5,
+        "strokeTo": 0,
+        "lifetime": 26,
+        "lightColor": "85e0c6",
+        "lightOpacity": 0.45
+      },
+      {
+        "type": "WaveEffect",
+        "colorFrom": "f7e097",
+        "colorTo": "d3b45e",
+        "sizeFrom": 2,
+        "sizeTo": 28,
+        "strokeFrom": 3,
+        "strokeTo": 0,
+        "lifetime": 20,
+        "startDelay": 3,
+        "lightColor": "f7e097",
+        "lightOpacity": 0.4
+      },
+      {
+        "type": "ParticleEffect",
+        "line": true,
+        "particles": 18,
+        "length": 38,
+        "cone": 360,
+        "colorFrom": "cffae8",
+        "colorTo": "3faaa4",
+        "strokeFrom": 3,
+        "strokeTo": 0.5,
+        "lenFrom": 9,
+        "lenTo": 2,
+        "lifetime": 24,
+        "lightColor": "85e0c6",
+        "lightOpacity": 0.4
+      },
+      {
+        "type": "ParticleEffect",
+        "line": true,
+        "particles": 8,
+        "length": 26,
+        "cone": 360,
+        "colorFrom": "f7e097",
+        "colorTo": "97773a",
+        "strokeFrom": 2.5,
+        "strokeTo": 0.3,
+        "lenFrom": 6,
+        "lenTo": 1,
+        "lifetime": 28,
+        "startDelay": 2
+      },
+      {
+        "type": "ParticleEffect",
+        "particles": 6,
+        "length": 9,
+        "cone": 90,
+        "sizeFrom": 5,
+        "sizeTo": 11,
+        "colorFrom": "4a6172aa",
+        "colorTo": "22303a00",
+        "lifetime": 32
+      }
+    ]
+  },
+  "updateEffect": {
+    "type": "ParticleEffect",
+    "particles": 1,
+    "length": 5,
+    "cone": 40,
+    "offsetY": -4,
+    "sizeFrom": 2,
+    "sizeTo": 5,
+    "colorFrom": "cffae8cc",
+    "colorTo": "3faaa400",
+    "lifetime": 40,
+    "lightColor": "85e0c6",
+    "lightOpacity": 0.18
+  },
+  "updateEffectChance": 0.07,
+  "updateEffectSpread": 4,
+  "warmupSpeed": 0.06,
+  "requirements": [
+    "copper/1500",
+    "lead/1200",
+    "titanium/1200",
+    "silicon/900",
+    "thorium/400",
+    "plastanium/500",
+    "surge-alloy/250",
+    "phase-fabric/150"
+  ],
+  "research": "surge-smelter"
+}
